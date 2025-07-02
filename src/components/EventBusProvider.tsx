@@ -9,7 +9,12 @@ export type EventType =
   | 'openSocialFeed'
   | 'openSocialShare'
   | 'programSelected'
-  | 'showProgramDetails';
+  | 'showProgramDetails'
+  | 'showChannelInfo'
+  | 'overlayShown'
+  | 'volumeChanged'
+  | 'numberKeyPressed'
+  | 'okButtonPressed';
 
 // Event payload types
 export interface EventPayloads {
@@ -21,6 +26,11 @@ export interface EventPayloads {
   openSocialShare: { platform: string; contentUrl: string; text?: string };
   programSelected: { programId: string; channelId: string };
   showProgramDetails: { program: any };
+  showChannelInfo: { show: boolean };
+  overlayShown: { overlay: string; visible: boolean };
+  volumeChanged: { volume: number; muted?: boolean };
+  numberKeyPressed: { number: string };
+  okButtonPressed: { context?: string };
 }
 
 type EventCallback<T extends EventType> = (payload: EventPayloads[T]) => void;
