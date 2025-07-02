@@ -31,7 +31,25 @@ export type {
 export { SteadyStreamDemo } from './SteadyStreamDemo';
 export { ComponentTest as ComponentAudit } from './ComponentAudit.test';
 
+// TiviMate-style components
+export { ChannelInfoBar, ChannelInfoBarExample } from './ChannelInfoBar';
+export { MiniEPGGuide, MiniEPGGuideExample } from './MiniEPGGuide';
+export { TiviMateDemo, TiviMateIntegrationGuide } from './TiviMateDemo';
+export { 
+  convertProgram, 
+  convertChannel, 
+  useTiviMateChannelData,
+  createChannelChangedPayload,
+  getProgramsForMiniEPG
+} from './TiviMateAdapter';
+
 // Types
 export type { Program } from './ProgramDetailsPopup';
 export type { EventType, EventPayloads } from './EventBusProvider';
 export type { DraftKingsHook } from './BetSlipModalEventDriven';
+export type { 
+  Program as EPGProgram, 
+  ChannelData, 
+  CurrentNextPrograms, 
+  ChannelChangedEvent 
+} from './types/epg';
