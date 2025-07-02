@@ -53,3 +53,7 @@ export type {
   CurrentNextPrograms, 
   ChannelChangedEvent 
 } from './types/epg';
+
+// Error handling
+export { AppErrorBoundary } from './AppErrorBoundary';
+export { useAsyncRetry } from '../hooks/useAsyncRetry';
