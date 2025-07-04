@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import videojs, { VideoJsPlayer } from 'video.js';
+import videojs from 'video.js';
 import Hls from 'hls.js';
 import 'video.js/dist/video-js.css';
 
@@ -38,7 +38,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   className = '',
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const playerRef = useRef<VideoJsPlayer | null>(null);
+  const playerRef = useRef<any>(null);
   const [isPiP, setIsPiP] = useState(false);
 
   const handlePiPToggle = useCallback(async () => {

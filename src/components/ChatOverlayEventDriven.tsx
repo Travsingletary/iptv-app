@@ -105,8 +105,10 @@ export const ChatOverlayEventDriven: React.FC<ChatOverlayEventDrivenProps> = ({
     // Call optional onClose prop
     onClose?.();
     
-    // Publish event for other components
-    eventBus.publish('showChat', { channelId: currentChannelId, provider: currentProvider });
+    // Publish event for other components (only if provider is valid)
+    if (currentProvider !== 'custom') {
+      eventBus.publish('showChat', { channelId: currentChannelId, provider: currentProvider });
+    }
   }, [currentChannelId, currentProvider, eventBus, onClose]);
 
   // Auto-scroll to bottom
