@@ -1,12 +1,12 @@
 import React, { createContext, useContext } from 'react'
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { AppStore } from '@types/index'
+import { AppStore } from '../types'
 
 // Zustand store
 export const useAppStore = create<AppStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // User state
       user: null,
       isAuthenticated: false,
