@@ -1,11 +1,97 @@
 {
+  "name": "steady-stream",
+  "version": "1.0.0",
+  "description": "A robust IPTV streaming application with TiviMate-like functionality",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "type-check": "tsc --noEmit",
+    "prepare": "husky install"
+  },
   "dependencies": {
+    "@headlessui/react": "^2.1.2",
+    "@heroicons/react": "^2.1.5",
     "@supabase/supabase-js": "^2.50.2",
+    "@tanstack/react-query": "^5.51.23",
+    "axios": "^1.7.4",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "framer-motion": "^11.3.19",
+    "hls.js": "^1.5.13",
+    "lodash": "^4.17.21",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hotkeys-hook": "^4.5.0",
+    "react-intersection-observer": "^9.13.0",
+    "react-router-dom": "^6.26.1",
+    "react-virtualized-auto-sizer": "^1.0.24",
+    "react-window": "^1.8.8",
+    "uuid": "^10.0.0",
+    "video.js": "^8.12.0",
+    "videojs-contrib-hls": "^5.15.0",
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/lodash": "^4.17.7",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/react-window": "^1.8.8",
+    "@types/uuid": "^10.0.0",
+    "@types/video.js": "^7.3.58",
+    "@typescript-eslint/eslint-plugin": "^7.15.0",
+    "@typescript-eslint/parser": "^7.15.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.0.5",
     "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "husky": "^9.1.4",
+    "jsdom": "^24.1.1",
+    "lint-staged": "^15.2.7",
     "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.3"
-  }
+    "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.3",
+    "terser": "^5.43.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.4",
+    "vitest": "^2.0.5"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": [
+    "iptv",
+    "streaming",
+    "epg",
+    "video-player",
+    "react",
+    "typescript",
+    "tivimate"
+  ],
+  "author": "Steady Stream Team",
+  "license": "MIT"
 }
