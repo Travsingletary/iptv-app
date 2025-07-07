@@ -1,0 +1,68 @@
+name: Production Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: 'Vercel deployment ID to rollback to'
+        required: false
+        type: string
+      commit_sha:
+        description: 'Git commit SHA to rollback to (if no deployment ID)'
+        required: false
+        type: string
+
+jobs:
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate inputs
+        run: |
+          if [[ -z "${{ inputs.deployment_id }}" ]] && [[ -z "${{ inputs.commit_sha }}" ]]; then
+            echo "❌ Error: Either deployment_id or commit_sha must be provided"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha || github.sha }}
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Rollback using deployment ID
+        if: inputs.deployment_id != ''
+        run: |
+          vercel alias set ${{ inputs.deployment_id }} your-domain.com --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Rolled back to deployment: ${{ inputs.deployment_id }}"
+
+      - name: Rollback using commit SHA
+        if: inputs.deployment_id == '' && inputs.commit_sha != ''
+        run: |
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Rolled back to commit: ${{ inputs.commit_sha }}"
+
+      - name: Notify rollback completion
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {
+              text: '🔄 Production Rollback Completed',
+              attachments: [{
+                color: 'warning',
+                fields: [
+                  { title: 'Triggered by', value: '${{ github.actor }}', short: true },
+                  { title: 'Deployment ID', value: '${{ inputs.deployment_id || "N/A" }}', short: true },
+                  { title: 'Commit SHA', value: '${{ inputs.commit_sha || "N/A" }}', short: true },
+                  { title: 'Time', value: '${{ github.event.repository.updated_at }}', short: true }
+                ]
+              }]
+            }
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
