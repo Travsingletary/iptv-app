@@ -1,4 +1,14 @@
 {
+  "name": "iptv-app",
+  "version": "1.0.0",
+  "description": "IPTV streaming application",
+  "main": "src/app.js",
+  "scripts": {
+    "build": "tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
+    "build-once": "tailwindcss -i ./src/input.css -o ./dist/output.css",
+    "dev": "npm run build-once && python3 -m http.server 8000",
+    "start": "npm run build-once && python3 -m http.server 8000"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",
     "zustand": "^5.0.6"
