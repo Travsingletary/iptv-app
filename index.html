@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV App</title>
+    <link href="./dist/output.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white">
+    <div id="app">
+        <header class="bg-gray-800 p-4">
+            <h1 class="text-2xl font-bold">IPTV Player</h1>
+        </header>
+        
+        <main class="p-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-gray-800 rounded-lg p-6 mb-6">
+                    <h2 class="text-xl mb-4">Welcome to your IPTV App</h2>
+                    <p class="text-gray-300">Your IPTV streaming application is now running!</p>
+                </div>
+                
+                <div id="channel-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Channels will be loaded here -->
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script src="./src/app.js"></script>
+</body>
+</html>
