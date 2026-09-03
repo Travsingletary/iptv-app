@@ -27,7 +27,7 @@ export function HeroBanner({ channel }: { channel: Channel }) {
           backgroundPosition: 'center',
         }}
       />
-      <div className="absolute inset-0 bg-hero-wash opacity-70 mix-blend-multiply" />
+      <div className="pointer-events-none absolute inset-0 bg-hero-wash opacity-70 mix-blend-multiply" />
 
       <div className="relative z-10 flex h-full max-w-3xl flex-col justify-end px-6 pb-10 pt-24 md:px-10 md:pb-14">
         <motion.p
