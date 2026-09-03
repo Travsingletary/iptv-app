@@ -15,7 +15,7 @@ export function HeroBanner({ channel }: { channel: Channel }) {
   return (
     <section className="relative isolate min-h-[58vh] overflow-hidden md:min-h-[68vh]">
       <motion.div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-0"
         initial={{ scale: 1.08, opacity: 0.6 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
