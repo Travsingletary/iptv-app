@@ -1,4 +1,5 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { MessageCircle, Send, X } from 'lucide-react'
 import { useIptvStore } from '../../store/useIptvStore'
 import type { AssistantApiResult } from '../../lib/assistantCore'

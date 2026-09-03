@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { resolveAssistantReply } from './src/lib/assistantCore'
+import { resolveAssistantReply } from './src/lib/assistantCore.ts'
 
 interface AssistantRequestBody {
   message?: string
