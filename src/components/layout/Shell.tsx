@@ -16,17 +16,9 @@ export function Shell({ children }: { children: ReactNode }) {
           <motion.div
             key={view}
             className="h-full overflow-y-auto"
-            initial={
-              prefs.reduceMotion
-                ? false
-                : { opacity: 0, y: 14, filter: 'blur(4px)' }
-            }
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={
-              prefs.reduceMotion
-                ? undefined
-                : { opacity: 0, y: -10, filter: 'blur(3px)' }
-            }
+            initial={prefs.reduceMotion ? false : { opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefs.reduceMotion ? undefined : { opacity: 0, y: -10 }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
             {children}

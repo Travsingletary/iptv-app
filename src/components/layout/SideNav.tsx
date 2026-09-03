@@ -61,7 +61,7 @@ export function SideNav() {
               key={item.id}
               type="button"
               onClick={() => setView(item.id)}
-              className={`group relative flex items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+              className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
                 active
                   ? 'bg-ember-500/15 text-sand-50'
                   : 'text-mist-300 hover:bg-white/5 hover:text-sand-50'
@@ -70,13 +70,13 @@ export function SideNav() {
               {active && (
                 <motion.span
                   layoutId="nav-pill"
-                  className="absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30"
+                  className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30"
                   transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 />
               )}
               <Icon
                 size={20}
-                className={`relative z-10 ${active ? 'text-ember-400' : ''}`}
+                className={`relative z-10 shrink-0 ${active ? 'text-ember-400' : ''}`}
               />
               <span className="relative z-10 hidden text-sm font-medium md:inline">
                 {item.label}

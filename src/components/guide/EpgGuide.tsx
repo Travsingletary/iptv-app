@@ -145,14 +145,17 @@ export function EpgGuide() {
                     </div>
                   )}
                   {programs.map((p) => {
+                    const spanMs = prefs.guideHours * 60 * 60_000
+                    const trackW = prefs.guideHours * HOUR_WIDTH
+                    const startClamped = Math.max(p.start, gridStart)
+                    const endClamped = Math.min(p.end, gridStart + spanMs)
+                    if (endClamped <= startClamped) return null
                     const left =
-                      ((p.start - gridStart) /
-                        (prefs.guideHours * 60 * 60_000)) *
-                      (prefs.guideHours * HOUR_WIDTH)
-                    const width =
-                      ((p.end - p.start) / (prefs.guideHours * 60 * 60_000)) *
-                      (prefs.guideHours * HOUR_WIDTH)
+                      ((startClamped - gridStart) / spanMs) * trackW
+                    const width = ((endClamped - startClamped) / spanMs) * trackW - 3
+                    if (width < 10) return null
                     const isNow = p.start <= now && p.end > now
+                    const compact = width < 90
                     return (
                       <motion.button
                         key={p.id}
@@ -161,24 +164,26 @@ export function EpgGuide() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: Math.min(row * 0.02, 0.2) }}
                         onClick={() => playChannel(ch.id)}
-                        className={`absolute top-2 overflow-hidden rounded-lg border px-2.5 py-1.5 text-left transition hover:brightness-110 ${
+                        className={`absolute top-2 overflow-hidden rounded-lg border px-2 py-1.5 text-left transition hover:brightness-110 ${
                           isNow
                             ? 'border-ember-400/50 bg-ember-500/20'
                             : 'border-white/10 bg-ink-800/90'
                         }`}
                         style={{
-                          left: Math.max(left, 0),
-                          width: Math.max(width - 4, 48),
+                          left,
+                          width,
                           height: 'calc(100% - 1rem)',
                         }}
                         title={`${p.title} · ${formatTimeRange(p.start, p.end)}`}
                       >
-                        <p className="truncate text-xs font-semibold">
+                        <p className="truncate text-xs font-semibold leading-tight">
                           {p.title}
                         </p>
-                        <p className="truncate font-mono text-[10px] text-mist-300">
-                          {formatTimeRange(p.start, p.end)}
-                        </p>
+                        {!compact && (
+                          <p className="truncate font-mono text-[10px] leading-tight text-mist-300">
+                            {formatTimeRange(p.start, p.end)}
+                          </p>
+                        )}
                         {isNow && (
                           <div className="mt-1 h-0.5 overflow-hidden rounded bg-white/15">
                             <div

@@ -7,9 +7,9 @@ export function GuidePage() {
   const setSearch = useIptvStore((s) => s.setSearch)
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="absolute right-6 top-6 z-30 md:right-10">
-        <div className="relative">
+    <div className="relative flex h-full min-h-0 flex-col">
+      <div className="pointer-events-none absolute right-6 top-6 z-30 md:right-10">
+        <div className="pointer-events-auto relative">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-mist-400"
