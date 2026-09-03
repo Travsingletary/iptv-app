@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 import { SideNav } from './SideNav'
 import { useIptvStore } from '../../store/useIptvStore'
+import { AssistantPanel } from '../assistant/AssistantPanel'
 
 export function Shell({ children }: { children: ReactNode }) {
   const view = useIptvStore((s) => s.view)
@@ -24,6 +25,7 @@ export function Shell({ children }: { children: ReactNode }) {
             {children}
           </motion.div>
         </AnimatePresence>
+        <AssistantPanel />
       </main>
     </div>
   )

@@ -6,6 +6,7 @@ import {
   selectVod,
   useIptvStore,
 } from '../store/useIptvStore'
+import { buildForYouNow } from '../lib/recommendations'
 
 export function HomePage() {
   const channels = useIptvStore((s) => s.channels)
@@ -19,6 +20,15 @@ export function HomePage() {
   const recent = recentIds
     .map((id) => channels.find((c) => c.id === id))
     .filter(Boolean) as typeof channels
+  const forYouNow = useMemo(
+    () =>
+      buildForYouNow({
+        channels,
+        favorites,
+        recentIds,
+      }),
+    [channels, favorites, recentIds],
+  )
 
   const byGroup = useMemo(() => {
     const map = new Map<string, typeof channels>()
@@ -46,6 +56,9 @@ export function HomePage() {
       )}
       {favs.length > 0 && (
         <ChannelRail title="My list" channels={favs} />
+      )}
+      {forYouNow.length > 0 && (
+        <ChannelRail title="For You Now" channels={forYouNow} />
       )}
       <ChannelRail title="Live now" channels={live} />
       {vod.length > 0 && (

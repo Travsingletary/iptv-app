@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import Hls from 'hls.js'
 import { useIptvStore } from '../../store/useIptvStore'
+import { trackEvent } from '../../lib/eventLogger'
 
 interface VideoPlayerProps {
   className?: string
@@ -29,6 +30,9 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
     const onPlaying = () => {
       if (!destroyed) {
         setPlayer({ buffering: false, error: null })
+        if (channel) {
+          void trackEvent('play_start', { channelId: channel.id, name: channel.name })
+        }
         onReady?.()
       }
     }
@@ -43,10 +47,16 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
         })
       }
     }
+    const onEnded = () => {
+      if (channel) {
+        void trackEvent('play_end', { channelId: channel.id, name: channel.name })
+      }
+    }
 
     video.addEventListener('playing', onPlaying)
     video.addEventListener('waiting', onWaiting)
     video.addEventListener('error', onError)
+    video.addEventListener('ended', onEnded)
 
     if (Hls.isSupported()) {
       const hls = new Hls({
@@ -82,6 +92,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       video.removeEventListener('playing', onPlaying)
       video.removeEventListener('waiting', onWaiting)
       video.removeEventListener('error', onError)
+      video.removeEventListener('ended', onEnded)
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null

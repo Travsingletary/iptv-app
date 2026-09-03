@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { DEMO_CHANNELS, DEMO_EPG, DEMO_SOURCE, refreshDemoEpg } from '../lib/demoData'
 import { parseM3U } from '../lib/m3u'
+import { trackEvent } from '../lib/eventLogger'
 import type {
   AppView,
   Channel,
@@ -76,37 +77,52 @@ export const useIptvStore = create<IptvState>()(
 
       completeOnboarding: () => set({ onboarded: true, view: 'home' }),
 
-      setSearch: (search) => set({ search }),
+      setSearch: (search) => {
+        set({ search })
+        void trackEvent('search_query', { query: search.slice(0, 120) })
+      },
 
       setSelectedGroup: (selectedGroup) => set({ selectedGroup }),
 
       toggleFavorite: (channelId) =>
-        set((s) => ({
-          favorites: s.favorites.includes(channelId)
-            ? s.favorites.filter((id) => id !== channelId)
-            : [...s.favorites, channelId],
-        })),
+        set((s) => {
+          const favored = !s.favorites.includes(channelId)
+          void trackEvent('favorite_toggle', { channelId, favored })
+          return {
+            favorites: favored
+              ? [...s.favorites, channelId]
+              : s.favorites.filter((id) => id !== channelId),
+          }
+        }),
 
       playChannel: (channelId) =>
-        set((s) => ({
-          player: {
-            ...s.player,
-            channelId,
-            paused: false,
-            overlayVisible: true,
-            error: null,
-            buffering: true,
-          },
-          recentIds: [
-            channelId,
-            ...s.recentIds.filter((id) => id !== channelId),
-          ].slice(0, 24),
-          view: s.channels.find((c) => c.id === channelId)?.kind === 'live'
-            ? 'live'
-            : s.view === 'vod'
-              ? 'vod'
-              : 'live',
-        })),
+        set((s) => {
+          if (s.player.channelId && s.player.channelId !== channelId) {
+            void trackEvent('channel_switch', {
+              fromChannelId: s.player.channelId,
+              toChannelId: channelId,
+            })
+          }
+          return {
+            player: {
+              ...s.player,
+              channelId,
+              paused: false,
+              overlayVisible: true,
+              error: null,
+              buffering: true,
+            },
+            recentIds: [
+              channelId,
+              ...s.recentIds.filter((id) => id !== channelId),
+            ].slice(0, 24),
+            view: s.channels.find((c) => c.id === channelId)?.kind === 'live'
+              ? 'live'
+              : s.view === 'vod'
+                ? 'vod'
+                : 'live',
+          }
+        }),
 
       setPlayer: (patch) =>
         set((s) => ({ player: { ...s.player, ...patch } })),
