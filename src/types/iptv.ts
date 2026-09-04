@@ -40,6 +40,12 @@ export interface PlaylistSource {
   createdAt: number
 }
 
+export interface StreamFallbackOption {
+  channelId: string
+  channelName: string
+  reason: string
+}
+
 export interface PlayerState {
   channelId: string | null
   paused: boolean
@@ -48,6 +54,20 @@ export interface PlayerState {
   overlayVisible: boolean
   buffering: boolean
   error: string | null
+  /** One-tap alternates when the current stream fatally fails. */
+  fallbackSuggestions: StreamFallbackOption[]
+}
+
+export interface ProgramReminder {
+  id: string
+  programId: string
+  programTitle: string
+  channelId: string
+  channelName: string
+  fireAt: number
+  createdAt: number
+  fired: boolean
+  dismissed: boolean
 }
 
 export type AppView = 'home' | 'live' | 'guide' | 'vod' | 'favorites' | 'settings'

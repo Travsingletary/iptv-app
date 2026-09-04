@@ -49,4 +49,33 @@ describe('resolveAssistantReply', () => {
     expect(search?.status).toBe('executed')
     expect(search?.data?.programs?.length).toBeGreaterThan(0)
   })
+
+  it('executes set_mute for mute requests', async () => {
+    const result = await resolveAssistantReply('Mute', {
+      view: 'live',
+      currentChannelId: 'live_aether_one',
+      favorites: [],
+      recentIds: [],
+      channels: DEMO_CHANNELS,
+      epg: DEMO_EPG,
+    })
+
+    const mute = result.toolCalls.find((tool) => tool.tool === 'set_mute')
+    expect(mute?.data?.muted).toBe(true)
+  })
+
+  it('executes set_reminder for upcoming guide titles', async () => {
+    const result = await resolveAssistantReply('Remind me when Match Center starts', {
+      view: 'guide',
+      currentChannelId: null,
+      favorites: [],
+      recentIds: [],
+      channels: DEMO_CHANNELS,
+      epg: DEMO_EPG,
+    })
+
+    const reminder = result.toolCalls.find((tool) => tool.tool === 'set_reminder')
+    expect(reminder?.status).toBe('executed')
+    expect(reminder?.data?.reminders?.length).toBeGreaterThan(0)
+  })
 })

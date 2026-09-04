@@ -9,8 +9,18 @@ import type {
   EpgProgram,
   PlayerState,
   PlaylistSource,
+  ProgramReminder,
   UiPrefs,
 } from '../types/iptv'
+import {
+  createReminder,
+  dismissReminder as dismissReminderPure,
+  loadReminders,
+  markDueReminders,
+  saveReminders,
+  type ReminderDraft,
+} from '../lib/reminders'
+import { suggestStreamFallbacks } from '../lib/streamFallback'
 
 interface IptvState {
   onboarded: boolean
@@ -25,6 +35,8 @@ interface IptvState {
   selectedGroup: string | null
   player: PlayerState
   prefs: UiPrefs
+  reminders: ProgramReminder[]
+  reminderToasts: ProgramReminder[]
   setView: (view: AppView) => void
   completeOnboarding: () => void
   setSearch: (q: string) => void
@@ -32,12 +44,17 @@ interface IptvState {
   toggleFavorite: (channelId: string) => void
   playChannel: (channelId: string) => void
   setPlayer: (patch: Partial<PlayerState>) => void
+  setStreamError: (message: string) => void
   loadDemo: () => void
   importM3UText: (name: string, text: string, epgUrl?: string) => void
   importM3UUrl: (name: string, url: string, epgUrl?: string) => Promise<void>
   removeSource: (id: string) => void
   setPrefs: (patch: Partial<UiPrefs>) => void
   refreshDemoGuide: () => void
+  addReminder: (draft: ReminderDraft) => ProgramReminder
+  dismissReminder: (id: string) => void
+  clearReminderToast: (id: string) => void
+  tickReminders: (now?: number) => void
 }
 
 const defaultPlayer: PlayerState = {
@@ -48,6 +65,7 @@ const defaultPlayer: PlayerState = {
   overlayVisible: true,
   buffering: false,
   error: null,
+  fallbackSuggestions: [],
 }
 
 const defaultPrefs: UiPrefs = {
@@ -72,6 +90,8 @@ export const useIptvStore = create<IptvState>()(
       selectedGroup: null,
       player: defaultPlayer,
       prefs: defaultPrefs,
+      reminders: loadReminders(),
+      reminderToasts: [],
 
       setView: (view) => set({ view }),
 
@@ -111,6 +131,7 @@ export const useIptvStore = create<IptvState>()(
               overlayVisible: true,
               error: null,
               buffering: true,
+              fallbackSuggestions: [],
             },
             recentIds: [
               channelId,
@@ -126,6 +147,63 @@ export const useIptvStore = create<IptvState>()(
 
       setPlayer: (patch) =>
         set((s) => ({ player: { ...s.player, ...patch } })),
+
+      setStreamError: (message) =>
+        set((s) => {
+          const channelId = s.player.channelId
+          const fallbackSuggestions = channelId
+            ? suggestStreamFallbacks(channelId, s.channels, 3).map((item) => ({
+                channelId: item.channelId,
+                channelName: item.channelName,
+                reason: item.reason,
+              }))
+            : []
+          return {
+            player: {
+              ...s.player,
+              buffering: false,
+              overlayVisible: true,
+              error: message,
+              fallbackSuggestions,
+            },
+          }
+        }),
+
+      addReminder: (draft) => {
+        const reminder = createReminder(draft)
+        set((s) => {
+          const reminders = [...s.reminders.filter((r) => !r.dismissed), reminder].slice(-80)
+          saveReminders(reminders)
+          return { reminders }
+        })
+        return reminder
+      },
+
+      dismissReminder: (id) =>
+        set((s) => {
+          const reminders = dismissReminderPure(s.reminders, id)
+          saveReminders(reminders)
+          return {
+            reminders,
+            reminderToasts: s.reminderToasts.filter((t) => t.id !== id),
+          }
+        }),
+
+      clearReminderToast: (id) =>
+        set((s) => ({
+          reminderToasts: s.reminderToasts.filter((t) => t.id !== id),
+        })),
+
+      tickReminders: (now = Date.now()) =>
+        set((s) => {
+          const { next, newlyFired } = markDueReminders(s.reminders, now)
+          if (!newlyFired.length) return s
+          saveReminders(next)
+          return {
+            reminders: next,
+            reminderToasts: [...newlyFired, ...s.reminderToasts].slice(0, 5),
+          }
+        }),
 
       loadDemo: () =>
         set({

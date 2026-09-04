@@ -24,9 +24,15 @@ export async function askAssistant(
     // Network / CORS / missing route — use local core.
   }
 
+  const apiKey =
+    (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) || undefined
   const modelConfigured = Boolean(
-    import.meta.env.VITE_AI_PROVIDER || import.meta.env.VITE_OPENAI_API_KEY,
+    import.meta.env.VITE_AI_PROVIDER || apiKey,
   )
-  const result = await resolveAssistantReply(message, context, { modelConfigured })
+  const result = await resolveAssistantReply(message, context, {
+    modelConfigured,
+    apiKey,
+    provider: import.meta.env.VITE_AI_PROVIDER as string | undefined,
+  })
   return { result, source: 'local' }
 }

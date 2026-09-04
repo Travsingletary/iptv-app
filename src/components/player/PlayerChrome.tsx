@@ -194,9 +194,29 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
             </div>
 
             {player.error && (
-              <p className="rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-200">
-                {player.error}
-              </p>
+              <div className="space-y-2 rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-200">
+                <p>{player.error}</p>
+                {player.fallbackSuggestions?.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-red-100/70">
+                      Try instead
+                    </span>
+                    {player.fallbackSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.channelId}
+                        type="button"
+                        onClick={() => playChannel(suggestion.channelId)}
+                        className="rounded-lg border border-white/20 bg-ink-900/80 px-2.5 py-1 text-xs text-sand-50 hover:border-ember-400/50"
+                      >
+                        {suggestion.channelName}
+                        <span className="ml-1.5 text-[10px] text-mist-300">
+                          {suggestion.reason}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {player.buffering && !player.error && (
               <p className="font-mono text-xs uppercase tracking-widest text-mist-300 animate-pulse-soft">

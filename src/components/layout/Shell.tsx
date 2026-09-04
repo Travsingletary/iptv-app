@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { SideNav } from './SideNav'
 import { useIptvStore } from '../../store/useIptvStore'
 import { AssistantPanel } from '../assistant/AssistantPanel'
+import { ReminderToasts } from '../assistant/ReminderToasts'
 
 export function Shell({ children }: { children: ReactNode }) {
   const view = useIptvStore((s) => s.view)
@@ -26,6 +27,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </motion.div>
         </AnimatePresence>
         <AssistantPanel />
+        <ReminderToasts />
       </main>
     </div>
   )

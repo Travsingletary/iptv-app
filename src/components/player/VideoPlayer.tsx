@@ -18,6 +18,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
   const volume = useIptvStore((s) => s.player.volume)
   const channels = useIptvStore((s) => s.channels)
   const setPlayer = useIptvStore((s) => s.setPlayer)
+  const setStreamError = useIptvStore((s) => s.setStreamError)
 
   const channel = channels.find((c) => c.id === channelId)
 
@@ -25,7 +26,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
     const video = videoRef.current
     if (!video || !channel?.url) return
 
-    setPlayer({ buffering: true, error: null })
+    setPlayer({ buffering: true, error: null, fallbackSuggestions: [] })
     let destroyed = false
     playStartedRef.current = false
     const activeChannel = channel
@@ -57,10 +58,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
     }
     const onError = () => {
       if (!destroyed) {
-        setPlayer({
-          buffering: false,
-          error: 'Playback failed. This stream may be offline or blocked.',
-        })
+        setStreamError('Playback failed. This stream may be offline or blocked.')
       }
     }
     const onEnded = () => {
@@ -88,10 +86,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       })
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (data.fatal) {
-          setPlayer({
-            buffering: false,
-            error: 'Stream error. Try another channel.',
-          })
+          setStreamError('Stream error. Try another channel.')
         }
       })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -115,7 +110,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       video.removeAttribute('src')
       video.load()
     }
-  }, [channel?.url, channelId, onReady, setPlayer])
+  }, [channel?.url, channelId, onReady, setPlayer, setStreamError])
 
   useEffect(() => {
     const video = videoRef.current

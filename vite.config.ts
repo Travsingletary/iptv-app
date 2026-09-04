@@ -34,6 +34,8 @@ function attachAssistantMiddleware(middlewares: Connect.Server) {
 
         const result = await resolveAssistantReply(message, context, {
           modelConfigured: Boolean(process.env.AI_PROVIDER || process.env.OPENAI_API_KEY),
+          apiKey: process.env.OPENAI_API_KEY,
+          provider: process.env.AI_PROVIDER,
         })
         res.statusCode = 200
         res.setHeader('content-type', 'application/json')
