@@ -1,4 +1,4 @@
-import type { Channel } from '../types/iptv'
+import type { Channel } from '../types/iptv.js'
 
 export interface RecommendationContext {
   channels: Channel[]
