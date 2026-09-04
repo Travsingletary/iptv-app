@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Search } from 'lucide-react'
 import { VideoPlayer } from '../components/player/VideoPlayer'
 import { PlayerChrome } from '../components/player/PlayerChrome'
@@ -17,7 +17,8 @@ export function LivePage() {
   const setPlayer = useIptvStore((s) => s.setPlayer)
   const selectedGroup = useIptvStore((s) => s.selectedGroup)
   const setSelectedGroup = useIptvStore((s) => s.setSelectedGroup)
-  const [q, setQ] = useState('')
+  const search = useIptvStore((s) => s.search)
+  const setSearch = useIptvStore((s) => s.setSearch)
 
   const live = useMemo(() => selectLiveChannels(channels), [channels])
   const groups = useMemo(() => selectGroups(live), [live])
@@ -25,11 +26,11 @@ export function LivePage() {
   const filtered = useMemo(() => {
     return live.filter((c) => {
       if (selectedGroup && c.group !== selectedGroup) return false
-      if (!q.trim()) return true
+      if (!search.trim()) return true
       const hay = `${c.name} ${c.group}`.toLowerCase()
-      return hay.includes(q.toLowerCase())
+      return hay.includes(search.toLowerCase())
     })
-  }, [live, selectedGroup, q])
+  }, [live, selectedGroup, search])
 
   const active = channels.find((c) => c.id === player.channelId) || filtered[0]
 
@@ -67,8 +68,8 @@ export function LivePage() {
               className="absolute left-3 top-1/2 -translate-y-1/2 text-mist-400"
             />
             <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search channels"
               className="w-full rounded-xl border border-white/10 bg-ink-850 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-ember-400/50"
             />

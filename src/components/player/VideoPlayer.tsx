@@ -11,6 +11,7 @@ interface VideoPlayerProps {
 export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
+  const playStartedRef = useRef(false)
   const channelId = useIptvStore((s) => s.player.channelId)
   const paused = useIptvStore((s) => s.player.paused)
   const muted = useIptvStore((s) => s.player.muted)
@@ -26,12 +27,27 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
 
     setPlayer({ buffering: true, error: null })
     let destroyed = false
+    playStartedRef.current = false
+    const activeChannel = channel
+
+    const emitPlayEnd = () => {
+      if (!playStartedRef.current || !activeChannel) return
+      playStartedRef.current = false
+      void trackEvent('play_end', {
+        channelId: activeChannel.id,
+        name: activeChannel.name,
+      })
+    }
 
     const onPlaying = () => {
       if (!destroyed) {
         setPlayer({ buffering: false, error: null })
-        if (channel) {
-          void trackEvent('play_start', { channelId: channel.id, name: channel.name })
+        if (!playStartedRef.current) {
+          playStartedRef.current = true
+          void trackEvent('play_start', {
+            channelId: activeChannel.id,
+            name: activeChannel.name,
+          })
         }
         onReady?.()
       }
@@ -48,9 +64,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       }
     }
     const onEnded = () => {
-      if (channel) {
-        void trackEvent('play_end', { channelId: channel.id, name: channel.name })
-      }
+      emitPlayEnd()
     }
 
     video.addEventListener('playing', onPlaying)
@@ -65,7 +79,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
         backBufferLength: 30,
       })
       hlsRef.current = hls
-      hls.loadSource(channel.url)
+      hls.loadSource(activeChannel.url)
       hls.attachMedia(video)
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         void video.play().catch(() => {
@@ -81,7 +95,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
         }
       })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = channel.url
+      video.src = activeChannel.url
       void video.play().catch(() => setPlayer({ paused: true, buffering: false }))
     } else {
       setPlayer({ error: 'HLS is not supported in this browser.', buffering: false })
@@ -89,6 +103,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
 
     return () => {
       destroyed = true
+      emitPlayEnd()
       video.removeEventListener('playing', onPlaying)
       video.removeEventListener('waiting', onWaiting)
       video.removeEventListener('error', onError)
