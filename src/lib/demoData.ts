@@ -3,11 +3,15 @@ import type { Channel, EpgProgram, PlaylistSource } from '../types/iptv'
 /** Public HLS samples for a working demo without a paid IPTV sub. */
 const DEMO_STREAMS = {
   bigBuck: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-  appleBipbop: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
-  tears: 'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
-  sintel: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8',
+  appleBipbop:
+    'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8',
+  tears:
+    'https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8',
+  /** Mux secondary sample (replaces Akamai Sintel which returns 403). */
+  muxAlt: 'https://test-streams.mux.dev/test_001/stream.m3u8',
   ocean: 'https://playertest.longtailvideo.com/adaptive/oceans/oceans.m3u8',
   fmp4: 'https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8',
+  bbb: 'https://storage.googleapis.com/shaka-demo-assets/bbb-dark-truths-hls/hls.m3u8',
 }
 
 const logos = {
@@ -62,7 +66,7 @@ export const DEMO_CHANNELS: Channel[] = [
     id: 'live_arena_sports',
     name: 'Arena Sports HD',
     group: 'Sports',
-    url: DEMO_STREAMS.sintel,
+    url: DEMO_STREAMS.bbb,
     kind: 'live',
     tvgId: 'arena.sports',
     logo: logos.sports,
@@ -129,7 +133,7 @@ export const DEMO_CHANNELS: Channel[] = [
     id: 'movie_aurora_drift',
     name: 'Aurora Drift',
     group: 'VOD · Action',
-    url: DEMO_STREAMS.sintel,
+    url: DEMO_STREAMS.muxAlt,
     kind: 'movie',
     poster: posters.aurora,
     backdrop: posters.aurora,
