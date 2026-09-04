@@ -11,6 +11,7 @@ A cable / Netflix-style IPTV experience for the web: live TV, electronic program
 - **Favorites** and continue-watching
 - **M3U import** via URL or paste (Settings)
 - **Demo pack** with public HLS samples so you can explore without a subscription
+- **Assistant** (Phase 1) with executable tools: recommend, EPG search, play channel
 - Keyboard: `Space` play/pause · `↑/↓` zap · `M` mute · `G` guide · `H` home
 
 ## Quick start
@@ -26,14 +27,34 @@ Open the printed local URL, choose **Enter with demo pack**, then browse Home / 
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Dev server |
+| `npm run dev` | Dev server (includes `POST /api/assistant`) |
 | `npm run build` | Production build |
-| `npm run preview` | Preview build |
-| `npm test` | Unit tests (M3U / EPG parsers) |
+| `npm run preview` | Preview build (also mounts `/api/assistant`) |
+| `npm run start:api` | Companion Node server: serves `dist/` + `/api/assistant` |
+| `npm test` | Unit tests (M3U / EPG / assistant / recommendations) |
+
+## Assistant API
+
+Phase 1 keeps the assistant provider-agnostic:
+
+1. **Vite middleware** — `npm run dev` and `npm run preview` expose `POST /api/assistant`.
+2. **Companion server** — after `npm run build`, run `npm run start:api` for a static+API host without Vite.
+3. **Client fallback** — if `/api/assistant` is unavailable (pure static hosting), the UI runs `assistantCore` in-browser. Tools still execute (`play_channel`, recommendations, EPG results).
+
+Optional env keys (`AI_PROVIDER` / `OPENAI_API_KEY` or `VITE_*` equivalents) are reserved for a real model adapter; without them the deterministic mock path is used.
+
+## Telemetry (Supabase)
+
+Copy `.env.example` → `.env.local` and set:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Apply `supabase/migrations/001_client_events.sql` in your project. When credentials are missing, events buffer in `localStorage` (`aether_event_buffer`) and never block playback.
 
 ## Stack
 
-React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js
+React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js · Supabase JS (optional)
 
 ## Notes
 

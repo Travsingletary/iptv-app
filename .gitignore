@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+server/.assistant-core.bundle.mjs
 
 # Editor directories and files
 .vscode/*
