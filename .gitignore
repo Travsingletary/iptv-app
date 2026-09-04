@@ -23,3 +23,4 @@ server/.assistant-core.bundle.mjs
 *.njsproj
 *.sln
 *.sw?
+.playwright-mcp/
