@@ -201,7 +201,7 @@ export const useIptvStore = create<IptvState>()(
       },
     }),
     {
-      name: 'aether-iptv-v1',
+      name: 'aether-iptv-v2',
       partialize: (s) => ({
         onboarded: s.onboarded,
         favorites: s.favorites,
@@ -212,6 +212,18 @@ export const useIptvStore = create<IptvState>()(
         // Persist demo or keep channels for m3u imports when small enough
         channels: s.channels.length < 500 ? s.channels : s.channels.slice(0, 500),
       }),
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<IptvState>
+        const merged = { ...current, ...saved }
+        // Always refresh demo pack channels/EPG so stream URL fixes apply.
+        if (!saved.activeSourceId || saved.activeSourceId === 'demo') {
+          merged.sources = [DEMO_SOURCE]
+          merged.activeSourceId = DEMO_SOURCE.id
+          merged.channels = DEMO_CHANNELS
+          merged.epg = refreshDemoEpg()
+        }
+        return merged
+      },
     },
   ),
 )
