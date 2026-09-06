@@ -107,19 +107,30 @@ try {
 
   await page.screenshot({ path: path.join(outDir, 'phase3_automation_rules_settings.png') })
 
-  // Trigger stream-error automation via store
+  // Trigger stream-error automation via store (split evaluates to avoid GC races)
   await page.getByRole('button', { name: 'Live TV' }).click()
   await page.waitForTimeout(800)
-  const autoResult = await page.evaluate(async () => {
+  await page.evaluate(async () => {
     const mod = await import('/src/store/useIptvStore.ts')
     const store = mod.useIptvStore
     store.getState().playChannel('live_aether_one')
-    store.getState().setStreamError('Stream error. Try another channel.')
+  })
+  await page.waitForTimeout(400)
+  await page.evaluate(async () => {
+    const mod = await import('/src/store/useIptvStore.ts')
+    mod.useIptvStore.getState().setStreamError('Stream error. Try another channel.')
+  })
+  await page.waitForTimeout(200)
+  const autoResult = await page.evaluate(async () => {
+    const mod = await import('/src/store/useIptvStore.ts')
+    const store = mod.useIptvStore
+    // Snapshot toasts before auto-switch clears channel error episode
     store.getState().tickAutomation(Date.now())
     const state = store.getState()
     return {
       toasts: state.automationToasts.map((t) => ({ kind: t.kind, message: t.message })),
       channelId: state.player.channelId,
+      firedKeys: state.automationFiredKeys.slice(-5),
     }
   })
   note(`automation after error: ${JSON.stringify(autoResult)}`)

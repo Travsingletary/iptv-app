@@ -274,7 +274,8 @@ export const useIptvStore = create<IptvState>()(
           automationToasts: s.automationToasts.filter((t) => t.id !== id),
         })),
 
-      tickAutomation: (now = Date.now()) =>
+      tickAutomation: (now = Date.now()) => {
+        let channelSwitched: string | null = null
         set((s) => {
           const actions = evaluateAutomationRules(s.automationRules, {
             now,
@@ -305,7 +306,6 @@ export const useIptvStore = create<IptvState>()(
 
           let reminders = s.reminders
           let player = s.player
-          let channelSwitched: string | null = null
 
           for (const action of actions) {
             if (action.kind === 'schedule_favorite_reminders' && action.reminders?.length) {
@@ -331,22 +331,17 @@ export const useIptvStore = create<IptvState>()(
             }
           }
 
-          const next: Partial<IptvState> = {
+          return {
             reminders,
             player,
             automationFiredKeys: [...s.automationFiredKeys, ...keys].slice(-40),
             automationToasts: [...actions, ...s.automationToasts].slice(0, 5),
           }
-
-          // Apply auto-switch outside this set via playChannel to keep telemetry consistent.
-          if (channelSwitched) {
-            queueMicrotask(() => {
-              get().playChannel(channelSwitched!)
-            })
-          }
-
-          return next
-        }),
+        })
+        if (channelSwitched) {
+          get().playChannel(channelSwitched)
+        }
+      },
 
       loadDemo: () =>
         set({
