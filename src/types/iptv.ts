@@ -46,6 +46,14 @@ export interface StreamFallbackOption {
   reason: string
 }
 
+export interface CatchupState {
+  active: boolean
+  minutesAgo: number
+  label: string
+  /** Effective URL being played (may be stub). */
+  url: string
+}
+
 export interface PlayerState {
   channelId: string | null
   paused: boolean
@@ -56,6 +64,11 @@ export interface PlayerState {
   error: string | null
   /** One-tap alternates when the current stream fatally fails. */
   fallbackSuggestions: StreamFallbackOption[]
+  /** Catch-up / timeshift overlay state. */
+  catchup: CatchupState | null
+  /** Multi-view mosaic slot channel ids (2 or 4). */
+  multiViewIds: string[]
+  multiViewLayout: 1 | 2 | 4
 }
 
 export interface ProgramReminder {
@@ -70,7 +83,7 @@ export interface ProgramReminder {
   dismissed: boolean
 }
 
-export type AppView = 'home' | 'live' | 'guide' | 'vod' | 'favorites' | 'settings'
+export type AppView = 'home' | 'live' | 'guide' | 'vod' | 'favorites' | 'settings' | 'multiview'
 
 export interface UiPrefs {
   showClock: boolean

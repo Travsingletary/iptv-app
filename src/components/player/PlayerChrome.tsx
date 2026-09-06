@@ -28,6 +28,9 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
   const playChannel = useIptvStore((s) => s.playChannel)
   const toggleFavorite = useIptvStore((s) => s.toggleFavorite)
   const setView = useIptvStore((s) => s.setView)
+  const startCatchup = useIptvStore((s) => s.startCatchup)
+  const clearCatchup = useIptvStore((s) => s.clearCatchup)
+  const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
 
   const live = useMemo(
     () => channels.filter((c) => c.kind === 'live'),
@@ -41,6 +44,8 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
 
   useEffect(() => {
     if (!player.overlayVisible) return
+    // Keep chrome visible while catch-up is active so status stays readable.
+    if (player.catchup?.active) return
     const t = window.setTimeout(() => {
       setPlayer({ overlayVisible: false })
     }, prefs.autoHideControlsMs)
@@ -49,6 +54,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
     player.overlayVisible,
     player.paused,
     player.channelId,
+    player.catchup?.active,
     prefs.autoHideControlsMs,
     setPlayer,
   ])
@@ -172,9 +178,58 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
                 }
                 className="h-1 w-28 accent-ember-400"
               />
-              <div className="ml-auto flex gap-2">
+              <div className="ml-auto flex flex-wrap gap-2">
+                {channel.catchup ? (
+                  <>
+                    <button
+                      type="button"
+                      data-tv-focus
+                      aria-label="Catch up 15 minutes"
+                      className="rounded-full border border-white/15 bg-ink-900/70 px-3 py-2 text-xs font-medium hover:border-ember-400/50"
+                      onClick={() => startCatchup(15)}
+                    >
+                      −15m
+                    </button>
+                    <button
+                      type="button"
+                      data-tv-focus
+                      aria-label="Catch up 30 minutes"
+                      className="rounded-full border border-white/15 bg-ink-900/70 px-3 py-2 text-xs font-medium hover:border-ember-400/50"
+                      onClick={() => startCatchup(30)}
+                    >
+                      −30m
+                    </button>
+                    {player.catchup?.active && (
+                      <button
+                        type="button"
+                        data-tv-focus
+                        aria-label="Return to live"
+                        className="rounded-full border border-ember-400/40 bg-ember-500/15 px-3 py-2 text-xs font-medium text-ember-300"
+                        onClick={() => clearCatchup()}
+                      >
+                        Live
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <span
+                    className="rounded-full border border-white/10 px-3 py-2 text-xs text-mist-400"
+                    title="This stream does not advertise catch-up. Xtream panels with tv_archive=1 enable timeshift URLs."
+                  >
+                    No catch-up
+                  </span>
+                )}
                 <button
                   type="button"
+                  data-tv-focus
+                  className="rounded-full border border-white/15 bg-ink-900/70 px-4 py-2 text-sm font-medium hover:border-ember-400/50"
+                  onClick={() => setMultiViewLayout(2)}
+                >
+                  Multi-view
+                </button>
+                <button
+                  type="button"
+                  data-tv-focus
                   className="rounded-full border border-white/15 bg-ink-900/70 px-4 py-2 text-sm font-medium hover:border-ember-400/50"
                   onClick={() => {
                     onOpenGuide?.()
@@ -185,6 +240,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
                 </button>
                 <button
                   type="button"
+                  data-tv-focus
                   className="rounded-full border border-white/15 bg-ink-900/70 px-4 py-2 text-sm font-medium hover:border-ember-400/50"
                   onClick={() => setView('live')}
                 >
@@ -192,6 +248,15 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
                 </button>
               </div>
             </div>
+
+            {player.catchup?.active && (
+              <p
+                data-testid="catchup-status"
+                className="rounded-lg border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-xs text-sand-100"
+              >
+                {player.catchup.label}
+              </p>
+            )}
 
             {player.error && (
               <div className="space-y-2 rounded-lg border border-red-400/30 bg-red-950/50 px-3 py-2 text-sm text-red-200">

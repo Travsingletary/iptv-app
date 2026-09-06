@@ -6,6 +6,8 @@ import { GuidePage } from './pages/GuidePage'
 import { VodPage } from './pages/VodPage'
 import { FavoritesPage } from './pages/FavoritesPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { MultiViewPage } from './pages/MultiViewPage'
+import { handleTvDirectionalKey } from './lib/tvFocus'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { useIptvStore } from './store/useIptvStore'
 
@@ -22,6 +24,8 @@ function ViewRouter() {
       return <FavoritesPage />
     case 'settings':
       return <SettingsPage />
+    case 'multiview':
+      return <MultiViewPage />
     case 'home':
     default:
       return <HomePage />
@@ -46,6 +50,9 @@ export default function App() {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
 
+      // Spatial D-pad navigation when focus is already on a control
+      if (handleTvDirectionalKey(e)) return
+
       const live = channels.filter((c) => c.kind === 'live')
       const idx = live.findIndex((c) => c.id === player.channelId)
 
@@ -64,6 +71,11 @@ export default function App() {
         setView('guide')
       } else if (e.key === 'h' || e.key === 'H') {
         setView('home')
+      } else if (e.key === 'v' || e.key === 'V') {
+        setView('multiview')
+        useIptvStore.getState().setMultiViewLayout(
+          useIptvStore.getState().player.multiViewLayout === 4 ? 4 : 2,
+        )
       } else if (e.key === 'Escape') {
         setPlayer({ overlayVisible: !useIptvStore.getState().player.overlayVisible })
       }

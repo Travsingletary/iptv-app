@@ -201,12 +201,16 @@ export function SettingsPage() {
   const loadDemo = useIptvStore((s) => s.loadDemo)
   const importM3UText = useIptvStore((s) => s.importM3UText)
   const importM3UUrl = useIptvStore((s) => s.importM3UUrl)
+  const importXtream = useIptvStore((s) => s.importXtream)
   const removeSource = useIptvStore((s) => s.removeSource)
   const refreshDemoGuide = useIptvStore((s) => s.refreshDemoGuide)
 
   const [name, setName] = useState('My Playlist')
   const [url, setUrl] = useState('')
   const [paste, setPaste] = useState('')
+  const [xtreamServer, setXtreamServer] = useState('')
+  const [xtreamUser, setXtreamUser] = useState('')
+  const [xtreamPass, setXtreamPass] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -220,6 +224,25 @@ export function SettingsPage() {
       setUrl('')
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Import failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+
+  const onXtreamImport = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setStatus(null)
+    try {
+      const result = await importXtream({
+        server: xtreamServer.trim(),
+        username: xtreamUser.trim(),
+        password: xtreamPass,
+      })
+      setStatus(result.message)
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Xtream import failed')
     } finally {
       setBusy(false)
     }
@@ -352,6 +375,63 @@ export function SettingsPage() {
         </form>
         {status && (
           <p className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100">
+            {status}
+          </p>
+        )}
+      </section>
+
+
+      <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
+        <h2 className="font-display text-lg font-semibold">Xtream Codes login</h2>
+        <p className="text-sm text-mist-300">
+          Enter panel URL, username, and password. On failure the app loads the demo pack so you can keep exploring.
+        </p>
+        <form onSubmit={onXtreamImport} className="space-y-3">
+          <label className="block text-sm">
+            Server URL
+            <input
+              value={xtreamServer}
+              onChange={(e) => setXtreamServer(e.target.value)}
+              placeholder="http://host:port"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+              data-tv-focus
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              Username
+              <input
+                value={xtreamUser}
+                onChange={(e) => setXtreamUser(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+                data-tv-focus
+              />
+            </label>
+            <label className="block text-sm">
+              Password
+              <input
+                type="password"
+                value={xtreamPass}
+                onChange={(e) => setXtreamPass(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+                data-tv-focus
+              />
+            </label>
+          </div>
+          <button
+            type="submit"
+            disabled={busy || !xtreamServer.trim() || !xtreamUser.trim() || !xtreamPass}
+            className="rounded-full bg-sand-50 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-40"
+            data-tv-focus
+          >
+            {busy ? 'Connecting…' : 'Connect Xtream'}
+          </button>
+        </form>
+        {status && (
+          <p
+            data-testid="xtream-status"
+            className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100"
+          >
             {status}
           </p>
         )}

@@ -6,27 +6,46 @@ import { trackEvent } from '../../lib/eventLogger'
 interface VideoPlayerProps {
   className?: string
   onReady?: () => void
+  /** Override channel for multi-view slots. */
+  channelIdOverride?: string
+  /** When true, do not write global player buffering/error state. */
+  silent?: boolean
+  mutedOverride?: boolean
 }
 
-export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
+export function VideoPlayer({
+  className = '',
+  onReady,
+  channelIdOverride,
+  silent = false,
+  mutedOverride,
+}: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const playStartedRef = useRef(false)
-  const channelId = useIptvStore((s) => s.player.channelId)
+  const storeChannelId = useIptvStore((s) => s.player.channelId)
+  const channelId = channelIdOverride ?? storeChannelId
   const paused = useIptvStore((s) => s.player.paused)
   const muted = useIptvStore((s) => s.player.muted)
   const volume = useIptvStore((s) => s.player.volume)
+  const catchup = useIptvStore((s) => s.player.catchup)
   const channels = useIptvStore((s) => s.channels)
   const setPlayer = useIptvStore((s) => s.setPlayer)
   const setStreamError = useIptvStore((s) => s.setStreamError)
 
   const channel = channels.find((c) => c.id === channelId)
+  const streamUrl =
+    !channelIdOverride && catchup?.active && catchup.url
+      ? catchup.url
+      : channel?.url
 
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !channel?.url) return
+    if (!video || !streamUrl || !channel) return
 
-    setPlayer({ buffering: true, error: null, fallbackSuggestions: [] })
+    if (!silent) {
+      setPlayer({ buffering: true, error: null, fallbackSuggestions: [] })
+    }
     let destroyed = false
     playStartedRef.current = false
     const activeChannel = channel
@@ -42,7 +61,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
 
     const onPlaying = () => {
       if (!destroyed) {
-        setPlayer({ buffering: false, error: null })
+        if (!silent) setPlayer({ buffering: false, error: null })
         if (!playStartedRef.current) {
           playStartedRef.current = true
           void trackEvent('play_start', {
@@ -54,10 +73,10 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       }
     }
     const onWaiting = () => {
-      if (!destroyed) setPlayer({ buffering: true })
+      if (!destroyed && !silent) setPlayer({ buffering: true })
     }
     const onError = () => {
-      if (!destroyed) {
+      if (!destroyed && !silent) {
         setStreamError('Playback failed. This stream may be offline or blocked.')
       }
     }
@@ -77,22 +96,24 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
         backBufferLength: 30,
       })
       hlsRef.current = hls
-      hls.loadSource(activeChannel.url)
+      hls.loadSource(streamUrl)
       hls.attachMedia(video)
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         void video.play().catch(() => {
-          setPlayer({ paused: true, buffering: false })
+          if (!silent) setPlayer({ paused: true, buffering: false })
         })
       })
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data.fatal) {
+        if (data.fatal && !silent) {
           setStreamError('Stream error. Try another channel.')
         }
       })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = activeChannel.url
-      void video.play().catch(() => setPlayer({ paused: true, buffering: false }))
-    } else {
+      video.src = streamUrl
+      void video.play().catch(() => {
+        if (!silent) setPlayer({ paused: true, buffering: false })
+      })
+    } else if (!silent) {
       setPlayer({ error: 'HLS is not supported in this browser.', buffering: false })
     }
 
@@ -110,21 +131,25 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       video.removeAttribute('src')
       video.load()
     }
-  }, [channel?.url, channelId, onReady, setPlayer, setStreamError])
+  }, [streamUrl, channelId, channel, onReady, setPlayer, setStreamError, silent])
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    if (silent) {
+      void video.play().catch(() => undefined)
+      return
+    }
     if (paused) video.pause()
     else void video.play().catch(() => undefined)
-  }, [paused])
+  }, [paused, silent])
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-    video.muted = muted
-    video.volume = volume
-  }, [muted, volume])
+    video.muted = mutedOverride ?? muted ?? true
+    if (!silent) video.volume = volume
+  }, [muted, volume, mutedOverride, silent])
 
   return (
     <video
@@ -132,6 +157,7 @@ export function VideoPlayer({ className = '', onReady }: VideoPlayerProps) {
       className={`h-full w-full bg-black object-contain ${className}`}
       playsInline
       autoPlay
+      muted={mutedOverride ?? muted}
       poster={channel?.backdrop || channel?.poster}
     />
   )

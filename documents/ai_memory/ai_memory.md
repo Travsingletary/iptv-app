@@ -19,3 +19,5 @@
 
 - Phase 4 verified: OpenAI-compatible multi-round tools loop (API key gated), household profiles, NL EPG search, reminder sync UX (`e2e/verify-phase4.mjs`).
 
+- Phase 5 verified: Xtream login + demo fallback, catchup/timeshift stub UX, 2/4-up multi-view, TV spatial focus (`e2e/verify-phase5.mjs`).
+

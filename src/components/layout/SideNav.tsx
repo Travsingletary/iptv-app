@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import {
   Clapperboard,
   Compass,
+  Grid2x2,
   Heart,
   Radio,
   Settings,
@@ -17,6 +18,7 @@ const NAV: { id: AppView; label: string; icon: typeof Tv }[] = [
   { id: 'live', label: 'Live TV', icon: Radio },
   { id: 'guide', label: 'Guide', icon: Tv },
   { id: 'vod', label: 'On Demand', icon: Clapperboard },
+  { id: 'multiview', label: 'Multi-view', icon: Grid2x2 },
   { id: 'favorites', label: 'Favorites', icon: Heart },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -60,8 +62,9 @@ export function SideNav() {
             <button
               key={item.id}
               type="button"
+              data-tv-focus
               onClick={() => setView(item.id)}
-              className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+              className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition focus-visible:focus-ring ${
                 active
                   ? 'bg-ember-500/15 text-sand-50'
                   : 'text-mist-300 hover:bg-white/5 hover:text-sand-50'

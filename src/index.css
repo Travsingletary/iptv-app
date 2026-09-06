@@ -48,6 +48,17 @@ body {
     @apply outline-none ring-2 ring-ember-400/90 ring-offset-2 ring-offset-ink-950;
   }
 
+  /* Android TV / remote: strong visible focus for spatial navigation */
+  :focus-visible,
+  [data-tv-focus]:focus {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+
+  .tv-focus-ring:focus-visible {
+    @apply outline-none ring-2 ring-ember-400 ring-offset-2 ring-offset-ink-950;
+  }
+
   .glass-panel {
     @apply border border-white/10 bg-ink-900/75 backdrop-blur-xl;
   }

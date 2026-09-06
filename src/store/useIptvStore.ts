@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { DEMO_CHANNELS, DEMO_EPG, DEMO_SOURCE, refreshDemoEpg } from '../lib/demoData'
+import { ingestXtream, xtreamDemoEpg, buildDemoCatchupStub, type XtreamCredentials } from '../lib/xtream'
 import { parseM3U } from '../lib/m3u'
 import { trackEvent } from '../lib/eventLogger'
 import type {
@@ -83,7 +84,12 @@ interface IptvState {
   loadDemo: () => void
   importM3UText: (name: string, text: string, epgUrl?: string) => void
   importM3UUrl: (name: string, url: string, epgUrl?: string) => Promise<void>
+  importXtream: (creds: XtreamCredentials) => Promise<{ message: string; usedDemoFallback: boolean }>
   removeSource: (id: string) => void
+  startCatchup: (minutesAgo: number) => void
+  clearCatchup: () => void
+  setMultiViewLayout: (layout: 1 | 2 | 4) => void
+  setMultiViewSlot: (index: number, channelId: string) => void
   setPrefs: (patch: Partial<UiPrefs>) => void
   refreshDemoGuide: () => void
   addReminder: (draft: ReminderDraft) => ProgramReminder
@@ -117,6 +123,9 @@ const defaultPlayer: PlayerState = {
   buffering: false,
   error: null,
   fallbackSuggestions: [],
+  catchup: null,
+  multiViewIds: [],
+  multiViewLayout: 1,
 }
 
 const defaultPrefs: UiPrefs = {
@@ -193,6 +202,7 @@ export const useIptvStore = create<IptvState>()(
               error: null,
               buffering: true,
               fallbackSuggestions: [],
+              catchup: null,
             },
             bufferingStartedAt: Date.now(),
             recentIds: [
@@ -433,6 +443,33 @@ export const useIptvStore = create<IptvState>()(
         })
       },
 
+      importXtream: async (creds) => {
+        const result = await ingestXtream(creds)
+        const stayOnSettings = get().view === 'settings'
+        if (result.usedDemoFallback) {
+          set({
+            sources: [DEMO_SOURCE],
+            activeSourceId: DEMO_SOURCE.id,
+            channels: DEMO_CHANNELS,
+            epg: xtreamDemoEpg(),
+            onboarded: true,
+            view: stayOnSettings ? 'settings' : 'home',
+            player: { ...defaultPlayer },
+          })
+        } else {
+          set({
+            sources: [...get().sources.filter((s) => s.type !== 'demo'), result.source],
+            activeSourceId: result.source.id,
+            channels: result.channels,
+            epg: [],
+            onboarded: true,
+            view: stayOnSettings ? 'settings' : 'home',
+            player: { ...defaultPlayer },
+          })
+        }
+        return { message: result.message, usedDemoFallback: result.usedDemoFallback }
+      },
+
       removeSource: (id) => {
         const remaining = get().sources.filter((s) => s.id !== id)
         if (!remaining.length) {
@@ -443,6 +480,64 @@ export const useIptvStore = create<IptvState>()(
       },
 
       setPrefs: (patch) => set((s) => ({ prefs: { ...s.prefs, ...patch } })),
+
+      startCatchup: (minutesAgo) =>
+        set((s) => {
+          const channel = s.channels.find((c) => c.id === s.player.channelId)
+          if (!channel) return s
+          const stub = buildDemoCatchupStub(channel, minutesAgo)
+          return {
+            player: {
+              ...s.player,
+              catchup: {
+                active: stub.supported,
+                minutesAgo,
+                label: stub.label,
+                url: stub.url,
+              },
+              overlayVisible: true,
+            },
+          }
+        }),
+
+      clearCatchup: () =>
+        set((s) => ({
+          player: { ...s.player, catchup: null },
+        })),
+
+      setMultiViewLayout: (layout) =>
+        set((s) => {
+          const live = s.channels.filter((c) => c.kind === 'live')
+          const seed = s.player.multiViewIds.length
+            ? s.player.multiViewIds
+            : ([s.player.channelId, ...live.map((c) => c.id)].filter(Boolean) as string[])
+          const unique = [...new Set(seed)].slice(0, layout)
+          while (unique.length < layout && live[unique.length]) {
+            unique.push(live[unique.length].id)
+          }
+          return {
+            view: layout === 1 ? 'live' : 'multiview',
+            player: {
+              ...s.player,
+              multiViewLayout: layout,
+              multiViewIds: unique,
+              channelId: unique[0] ?? s.player.channelId,
+            },
+          }
+        }),
+
+      setMultiViewSlot: (index, channelId) =>
+        set((s) => {
+          const ids = [...s.player.multiViewIds]
+          ids[index] = channelId
+          return {
+            player: {
+              ...s.player,
+              multiViewIds: ids,
+              channelId: index === 0 ? channelId : s.player.channelId,
+            },
+          }
+        }),
 
       refreshDemoGuide: () => {
         if (get().activeSourceId === 'demo') {
