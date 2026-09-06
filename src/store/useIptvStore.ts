@@ -20,8 +20,24 @@ import {
   saveReminders,
   type ReminderDraft,
 } from '../lib/reminders'
-import { syncRemindersToSupabase } from '../lib/reminderSync'
+import {
+  fetchRemindersFromSupabase,
+  getReminderSyncState,
+  syncRemindersToSupabase,
+  type ReminderSyncStatus,
+} from '../lib/reminderSync'
 import { suggestStreamFallbacks } from '../lib/streamFallback'
+import {
+  createProfile as createProfilePure,
+  getActiveProfile,
+  loadProfiles,
+  removeProfile as removeProfilePure,
+  saveProfiles,
+  switchProfile as switchProfilePure,
+  updateProfile as updateProfilePure,
+  type HouseholdProfile,
+  type ProfileStoreState,
+} from '../lib/profiles'
 import {
   evaluateAutomationRules,
   episodeKeysForActions,
@@ -52,6 +68,10 @@ interface IptvState {
   automationToasts: AutomationAction[]
   bufferingStartedAt: number | null
   automationFiredKeys: string[]
+  profiles: ProfileStoreState
+  reminderSyncStatus: ReminderSyncStatus
+  reminderSyncError: string | null
+  reminderSyncedAt: number | null
   setView: (view: AppView) => void
   completeOnboarding: () => void
   setSearch: (q: string) => void
@@ -78,6 +98,14 @@ interface IptvState {
   ) => void
   clearAutomationToast: (id: string) => void
   tickAutomation: (now?: number) => void
+  createProfile: (name: string, interestTags?: string[]) => void
+  switchProfile: (profileId: string) => void
+  updateActiveProfile: (
+    patch: Partial<Pick<HouseholdProfile, 'name' | 'interestTags' | 'avatarHue'>>,
+  ) => void
+  removeProfile: (profileId: string) => void
+  refreshReminderSyncStatus: () => void
+  pullRemindersFromCloud: () => Promise<void>
 }
 
 const defaultPlayer: PlayerState = {
@@ -119,6 +147,10 @@ export const useIptvStore = create<IptvState>()(
       automationToasts: [],
       bufferingStartedAt: null,
       automationFiredKeys: [],
+      profiles: loadProfiles(),
+      reminderSyncStatus: getReminderSyncState().status,
+      reminderSyncError: null,
+      reminderSyncedAt: null,
 
       setView: (view) => set({ view }),
 
@@ -135,11 +167,13 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const favored = !s.favorites.includes(channelId)
           void trackEvent('favorite_toggle', { channelId, favored })
-          return {
-            favorites: favored
-              ? [...s.favorites, channelId]
-              : s.favorites.filter((id) => id !== channelId),
-          }
+          const favorites = favored
+            ? [...s.favorites, channelId]
+            : s.favorites.filter((id) => id !== channelId)
+          const profiles = updateProfilePure(s.profiles, s.profiles.activeProfileId, {
+            favorites,
+          })
+          return { favorites, profiles }
         }),
 
       playChannel: (channelId) =>
@@ -213,7 +247,7 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = [...s.reminders.filter((r) => !r.dismissed), reminder].slice(-80)
           saveReminders(reminders)
-          void syncRemindersToSupabase(reminders)
+          void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
           return { reminders }
         })
         return reminder
@@ -223,7 +257,7 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = dismissReminderPure(s.reminders, id)
           saveReminders(reminders)
-          void syncRemindersToSupabase(reminders)
+          void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
           return {
             reminders,
             reminderToasts: s.reminderToasts.filter((t) => t.id !== id),
@@ -234,7 +268,7 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = s.reminders.map((r) => ({ ...r, dismissed: true }))
           saveReminders(reminders)
-          void syncRemindersToSupabase(reminders)
+          void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
           return { reminders, reminderToasts: [] }
         }),
 
@@ -317,7 +351,7 @@ export const useIptvStore = create<IptvState>()(
                 reminders = [...reminders, createReminder(draft)].slice(-80)
               }
               saveReminders(reminders)
-              void syncRemindersToSupabase(reminders)
+              void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
             }
             if (action.kind === 'toast_fallback_suggest' && action.fallbackSuggestions?.length) {
               player = {
@@ -415,6 +449,87 @@ export const useIptvStore = create<IptvState>()(
           set({ epg: refreshDemoEpg() })
         }
       },
+
+      createProfile: (name, interestTags = []) =>
+        set((s) => {
+          const profiles = createProfilePure(s.profiles, name, { interestTags })
+          const active = getActiveProfile(profiles)
+          return {
+            profiles,
+            favorites: active.favorites.length ? active.favorites : s.favorites,
+            prefs: { ...s.prefs, ...active.prefs },
+          }
+        }),
+
+      switchProfile: (profileId) =>
+        set((s) => {
+          // Persist current favorites onto active profile before switching
+          const withFavs = updateProfilePure(s.profiles, s.profiles.activeProfileId, {
+            favorites: s.favorites,
+            prefs: s.prefs,
+          })
+          const profiles = switchProfilePure(withFavs, profileId)
+          const active = getActiveProfile(profiles)
+          return {
+            profiles,
+            favorites: active.favorites.length
+              ? active.favorites
+              : profileId === 'profile_household'
+                ? s.favorites
+                : active.favorites,
+            prefs: { ...defaultPrefs, ...active.prefs },
+          }
+        }),
+
+      updateActiveProfile: (patch) =>
+        set((s) => {
+          const profiles = updateProfilePure(s.profiles, s.profiles.activeProfileId, patch)
+          return { profiles }
+        }),
+
+      removeProfile: (profileId) =>
+        set((s) => {
+          const profiles = removeProfilePure(s.profiles, profileId)
+          const active = getActiveProfile(profiles)
+          return {
+            profiles,
+            favorites: active.favorites,
+            prefs: { ...defaultPrefs, ...active.prefs },
+          }
+        }),
+
+      refreshReminderSyncStatus: () => {
+        const state = getReminderSyncState()
+        set({
+          reminderSyncStatus: state.status,
+          reminderSyncError: state.error,
+          reminderSyncedAt: state.syncedAt,
+        })
+      },
+
+      pullRemindersFromCloud: async () => {
+        set({ reminderSyncStatus: 'syncing', reminderSyncError: null })
+        const remote = await fetchRemindersFromSupabase()
+        const state = getReminderSyncState()
+        if (!remote) {
+          set({
+            reminderSyncStatus: state.status,
+            reminderSyncError: state.error,
+            reminderSyncedAt: state.syncedAt,
+          })
+          return
+        }
+        const byId = new Map(get().reminders.map((r) => [r.id, r]))
+        for (const r of remote) byId.set(r.id, r)
+        const reminders = [...byId.values()]
+        saveReminders(reminders)
+        set({
+          reminders,
+          reminderSyncStatus: state.status,
+          reminderSyncError: state.error,
+          reminderSyncedAt: state.syncedAt,
+        })
+      },
     }),
     {
       name: 'aether-iptv-v2',
@@ -425,6 +540,7 @@ export const useIptvStore = create<IptvState>()(
         prefs: s.prefs,
         sources: s.sources,
         activeSourceId: s.activeSourceId,
+        profiles: s.profiles,
         // Persist demo or keep channels for m3u imports when small enough
         channels: s.channels.length < 500 ? s.channels : s.channels.slice(0, 500),
       }),
@@ -437,6 +553,12 @@ export const useIptvStore = create<IptvState>()(
           merged.activeSourceId = DEMO_SOURCE.id
           merged.channels = DEMO_CHANNELS
           merged.epg = refreshDemoEpg()
+        }
+        if (saved.profiles?.profiles?.length) {
+          merged.profiles = saved.profiles
+          saveProfiles(saved.profiles)
+        } else {
+          merged.profiles = loadProfiles()
         }
         return merged
       },

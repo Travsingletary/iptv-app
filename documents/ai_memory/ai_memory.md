@@ -16,3 +16,6 @@
 
 - Phase 2 verified: voice intents, reminders, stream fallback chips (`e2e/verify-phase2.mjs`).
 - Phase 3: agent loop (`agentLoop`), automation rules, OpenAI-compatible provider adapter (env-gated), optional Supabase reminder sync.
+
+- Phase 4 verified: OpenAI-compatible multi-round tools loop (API key gated), household profiles, NL EPG search, reminder sync UX (`e2e/verify-phase4.mjs`).
+

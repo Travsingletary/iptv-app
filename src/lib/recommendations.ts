@@ -4,6 +4,8 @@ export interface RecommendationContext {
   channels: Channel[]
   favorites: string[]
   recentIds: string[]
+  /** Profile interest tags (sports, kids, …) bias scoring. */
+  interestTags?: string[]
   now?: Date
 }
 
@@ -24,8 +26,20 @@ function scoreByTime(channel: Channel, bucket: ReturnType<typeof hourBucket>) {
   return channel.kind === 'live' ? 12 : 8
 }
 
+function scoreByInterests(channel: Channel, tags: string[]) {
+  if (!tags.length) return 0
+  const hay = `${channel.group} ${channel.name} ${channel.description ?? ''}`.toLowerCase()
+  let score = 0
+  for (const tag of tags) {
+    const t = tag.toLowerCase().trim()
+    if (!t) continue
+    if (hay.includes(t)) score += 22
+  }
+  return score
+}
+
 export function buildForYouNow(context: RecommendationContext, limit = 10): Channel[] {
-  const { channels, favorites, recentIds, now = new Date() } = context
+  const { channels, favorites, recentIds, interestTags = [], now = new Date() } = context
   if (!channels.length) return []
 
   const recentWeights = new Map(recentIds.map((id, index) => [id, Math.max(24 - index * 3, 0)]))
@@ -38,9 +52,10 @@ export function buildForYouNow(context: RecommendationContext, limit = 10): Chan
       const recentBoost = recentWeights.get(channel.id) ?? 0
       const timeBoost = scoreByTime(channel, bucket)
       const kindBoost = channel.kind === 'live' ? 10 : 4
+      const interestBoost = scoreByInterests(channel, interestTags)
       return {
         channel,
-        score: favoriteBoost + recentBoost + timeBoost + kindBoost,
+        score: favoriteBoost + recentBoost + timeBoost + kindBoost + interestBoost,
       }
     })
     .sort((a, b) => b.score - a.score)

@@ -31,14 +31,13 @@ export async function askAssistant(
 
   const apiKey =
     (import.meta.env.VITE_OPENAI_API_KEY as string | undefined) || undefined
-  const modelConfigured = Boolean(
-    import.meta.env.VITE_AI_PROVIDER || apiKey,
-  )
+  const modelConfigured = Boolean(apiKey)
   const result = await resolveAssistantReply(message, context, {
     modelConfigured,
     apiKey,
     provider: import.meta.env.VITE_AI_PROVIDER as string | undefined,
     baseUrl: import.meta.env.VITE_OPENAI_BASE_URL as string | undefined,
+    model: import.meta.env.VITE_OPENAI_MODEL as string | undefined,
     confirmed: options.confirmed,
   })
   return { result, source: 'local' }

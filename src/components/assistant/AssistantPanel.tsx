@@ -11,6 +11,7 @@ import {
   loadConversationMemory,
   memoryAsHistory,
 } from '../../lib/conversationMemory'
+import { getActiveProfile } from '../../lib/profiles'
 import {
   getSpeechRecognitionCtor,
   isSpeechRecognitionSupported,
@@ -37,7 +38,7 @@ export function AssistantPanel() {
     {
       id: 'seed',
       role: 'assistant',
-      text: 'Hi, I am your Aether assistant. I can run multi-step plans — mute + remind, recommend + play, or clear reminders with confirmation. Hold the mic if your browser supports voice.',
+      text: 'Hi, I am your Aether assistant. Try “sports in next 2 hours”, switch profiles in Settings, or mute + remind. Hold the mic if your browser supports voice.',
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -61,6 +62,12 @@ export function AssistantPanel() {
   const reminders = useIptvStore((s) => s.reminders)
   const tickReminders = useIptvStore((s) => s.tickReminders)
   const tickAutomation = useIptvStore((s) => s.tickAutomation)
+  const profiles = useIptvStore((s) => s.profiles)
+  const reminderSyncStatus = useIptvStore((s) => s.reminderSyncStatus)
+  const reminderSyncedAt = useIptvStore((s) => s.reminderSyncedAt)
+  const refreshReminderSyncStatus = useIptvStore((s) => s.refreshReminderSyncStatus)
+  const pullRemindersFromCloud = useIptvStore((s) => s.pullRemindersFromCloud)
+  const activeProfile = useMemo(() => getActiveProfile(profiles), [profiles])
 
   const speechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
   const upcomingReminders = useMemo(() => activeReminders(reminders).slice(0, 6), [reminders])
@@ -73,20 +80,24 @@ export function AssistantPanel() {
       channels,
       epg,
       currentChannelId,
-      history: memoryAsHistory(loadConversationMemory(), 8),
+      profileId: activeProfile.id,
+      interestTags: activeProfile.interestTags,
+      history: memoryAsHistory(loadConversationMemory(activeProfile.id), 8),
     }),
-    [channels, currentChannelId, epg, favorites, recentIds, view, messages],
+    [activeProfile.id, activeProfile.interestTags, channels, currentChannelId, epg, favorites, recentIds, view, messages],
   )
 
   useEffect(() => {
     const id = window.setInterval(() => {
       tickReminders()
       tickAutomation()
+      refreshReminderSyncStatus()
     }, 5_000)
     tickReminders()
     tickAutomation()
+    refreshReminderSyncStatus()
     return () => window.clearInterval(id)
-  }, [tickReminders, tickAutomation])
+  }, [tickReminders, tickAutomation, refreshReminderSyncStatus])
 
   useEffect(() => {
     return () => {
@@ -128,7 +139,7 @@ export function AssistantPanel() {
         text: trimmed,
       }
       setMessages((prev) => [...prev, userMessage])
-      appendConversationTurn('user', trimmed)
+      appendConversationTurn('user', trimmed, Date.now(), activeProfile.id)
       setInput('')
     }
     setError(null)
@@ -137,7 +148,7 @@ export function AssistantPanel() {
     try {
       const { result, source } = await askAssistant(trimmed, snapshot, { confirmed })
       applyToolCalls(result.toolCalls, result.steps)
-      appendConversationTurn('assistant', result.response)
+      appendConversationTurn('assistant', result.response, Date.now(), activeProfile.id)
 
       setMessages((prev) => [
         ...prev,
@@ -225,7 +236,7 @@ export function AssistantPanel() {
             <div>
               <p className="font-display text-lg font-bold">Aether Assistant</p>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
-                Phase 3 · agent · automation
+                Phase 4 · {activeProfile.name} · profiles · NL EPG
               </p>
             </div>
             <button
@@ -238,11 +249,32 @@ export function AssistantPanel() {
             </button>
           </div>
 
-          {upcomingReminders.length > 0 && (
-            <div className="border-b border-white/10 px-4 py-2">
-              <p className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-ember-400">
-                <Bell size={12} /> Reminders
-              </p>
+          <div className="border-b border-white/10 px-4 py-2">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-ember-400">
+                  <Bell size={12} /> Reminders
+                </p>
+                <div className="flex items-center gap-2">
+                  <span
+                    data-testid="reminder-sync-status"
+                    className="font-mono text-[10px] uppercase tracking-[0.12em] text-mist-400"
+                  >
+                    sync: {reminderSyncStatus}
+                    {reminderSyncedAt ? ` · ${formatClock(reminderSyncedAt)}` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void pullRemindersFromCloud()}
+                    className="rounded-md border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-mist-300 hover:border-ember-400/40"
+                  >
+                    Sync
+                  </button>
+                </div>
+              </div>
+              {upcomingReminders.length === 0 && (
+                <p className="text-xs text-mist-400">No upcoming reminders.</p>
+              )}
+              {upcomingReminders.length > 0 && (
               <ul className="space-y-1.5">
                 {upcomingReminders.map((reminder) => (
                   <li
@@ -277,8 +309,8 @@ export function AssistantPanel() {
                   </li>
                 ))}
               </ul>
-            </div>
-          )}
+              )}
+          </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
             {messages.map((message) => (
@@ -328,13 +360,29 @@ export function AssistantPanel() {
                         })}
                       </div>
                     )}
+                    {tool.tool === 'search_epg' && tool.data?.epgFilters && (
+                      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-mist-400">
+                        {[
+                          tool.data.epgFilters.category,
+                          tool.data.epgFilters.maxDurationMs
+                            ? `under ${Math.round(tool.data.epgFilters.maxDurationMs / 3_600_000)}h`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ') || 'structured'}
+                      </p>
+                    )}
                     {tool.tool === 'search_epg' && tool.data?.programs && tool.data.programs.length > 0 && (
-                      <ul className="mt-2 space-y-1">
+                      <ul className="mt-2 space-y-1" data-testid="epg-structured-results">
                         {tool.data.programs.map((program) => (
                           <li key={program.id} className="flex items-center justify-between gap-2 text-xs">
                             <span className="min-w-0 truncate text-mist-100">
                               {program.title}
                               {program.channelName ? ` · ${program.channelName}` : ''}
+                              {program.category ? ` · ${program.category}` : ''}
+                              {typeof program.start === 'number'
+                                ? ` · ${formatClock(program.start)}`
+                                : ''}
                             </span>
                             <button
                               type="button"

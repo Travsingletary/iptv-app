@@ -1,6 +1,9 @@
 import type { Channel, EpgProgram } from '../types/iptv.js'
 import { runAgentTurn, type AgentStep } from './agentLoop.js'
-import { chatWithTools, isProviderConfigured } from './providerAdapter.js'
+import {
+  isProviderConfigured,
+  runProviderToolLoop,
+} from './providerAdapter.js'
 
 export interface AssistantContextSnapshot {
   view: string
@@ -11,6 +14,10 @@ export interface AssistantContextSnapshot {
   epg?: EpgProgram[]
   /** Short session transcript for optional provider / mock continuity. */
   history?: Array<{ role: 'user' | 'assistant'; text: string }>
+  /** Active household profile id (Phase 4). */
+  profileId?: string
+  /** Interest tags from the active profile. */
+  interestTags?: string[]
 }
 
 export type AssistantToolName =
@@ -36,7 +43,17 @@ export interface AssistantToolCall {
       title: string
       channelId: string
       channelName?: string
+      category?: string
+      start?: number
+      end?: number
+      durationMs?: number
     }>
+    epgFilters?: {
+      category?: string
+      windowStartMs?: number
+      windowEndMs?: number
+      maxDurationMs?: number
+    }
     reminders?: Array<{
       programId: string
       programTitle: string
@@ -51,9 +68,12 @@ export interface AssistantToolCall {
 export interface AssistantApiResult {
   response: string
   toolCalls: AssistantToolCall[]
-  /** Phase 3 multi-step plan details. */
+  /** Phase 3+ multi-step plan details. */
   steps?: AgentStep[]
   needsConfirmation?: boolean
+  /** When a real provider answered. */
+  providerModel?: string
+  providerRounds?: number
 }
 
 interface ResolveAssistantOptions {
@@ -62,6 +82,7 @@ interface ResolveAssistantOptions {
   apiKey?: string
   provider?: string
   baseUrl?: string
+  model?: string
   /** Execute confirm-risk tools (e.g. clear_reminders). */
   confirmed?: boolean
 }
@@ -81,8 +102,8 @@ function buildMockReply(
 }
 
 /**
- * Optional OpenAI-compatible chat completion. Falls back to mock on any failure
- * so the product stays usable without keys.
+ * Real multi-round OpenAI-compatible tools loop when an API key is present.
+ * Falls back to mock on any failure so the product stays usable without keys.
  */
 async function tryProviderReply(
   message: string,
@@ -94,38 +115,22 @@ async function tryProviderReply(
     return null
   }
 
-  const history = (context.history ?? []).slice(-8).map((turn) => ({
-    role: (turn.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
-    content: turn.text,
-  }))
-
-  const provider = await chatWithTools({
+  const loop = await runProviderToolLoop(message, context, {
     apiKey,
     provider: options.provider,
     baseUrl: options.baseUrl,
-    messages: [
-      {
-        role: 'system',
-        content:
-          'You are Aether, a concise IPTV assistant. Prefer short replies. Tools are executed locally via an allowlisted agent loop; do not invent channel IDs.',
-      },
-      ...history,
-      {
-        role: 'user',
-        content: `${message}\n\nContext view=${context.view} channel=${context.currentChannelId ?? 'none'}`,
-      },
-    ],
+    model: options.model,
+    confirmed: options.confirmed,
   })
+  if (!loop) return null
 
-  if (!provider) return null
-
-  // Always run the deterministic local agent for tool execution.
-  const local = buildMockReply(message, context, options)
   return {
-    response: provider.content,
-    toolCalls: local.toolCalls,
-    steps: local.steps,
-    needsConfirmation: local.needsConfirmation,
+    response: loop.response,
+    toolCalls: loop.toolCalls,
+    steps: loop.steps,
+    needsConfirmation: loop.needsConfirmation,
+    providerModel: loop.providerModel,
+    providerRounds: loop.rounds,
   }
 }
 

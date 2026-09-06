@@ -1,6 +1,7 @@
 import type { Channel, EpgProgram } from '../types/iptv.js'
 import { buildForYouNow } from './recommendations.js'
 import { findUpcomingPrograms } from './reminders.js'
+import { formatNlEpgSummary, searchNlEpg } from './nlEpgSearch.js'
 import type {
   AssistantContextSnapshot,
   AssistantToolCall,
@@ -91,44 +92,26 @@ function searchEpgPrograms(
   query: string,
   channels: Channel[],
   epg: EpgProgram[],
-  limit = 5,
+  limit = 8,
+  favoriteIds: string[] = [],
 ) {
-  const normalized = query.toLowerCase().replace(/[^\w\s]/g, ' ').trim()
-  const tokens = normalized.split(/\s+/).filter((token) => token.length > 2)
-  const channelByTvg = new Map(
-    channels.flatMap((ch) => {
-      const keys = [ch.id, ch.tvgId, ch.name].filter(Boolean) as string[]
-      return keys.map((key) => [key.toLowerCase(), ch] as const)
-    }),
-  )
-
-  return epg
-    .map((program) => {
-      const channel =
-        channelByTvg.get(program.channelId.toLowerCase()) ||
-        channels.find((ch) => ch.tvgId === program.channelId || ch.id === program.channelId)
-      const hay = [
-        program.title,
-        program.description ?? '',
-        program.category ?? '',
-        channel?.name ?? '',
-        channel?.group ?? '',
-      ]
-        .join(' ')
-        .toLowerCase()
-      const hit =
-        (normalized.length > 2 && hay.includes(normalized)) ||
-        tokens.some((token) => hay.includes(token))
-      if (!hit) return null
-      return {
-        id: program.id,
-        title: program.title,
-        channelId: channel?.id ?? program.channelId,
-        channelName: channel?.name,
-      }
-    })
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    .slice(0, limit)
+  const { filters, hits } = searchNlEpg(query, channels, epg, {
+    limit,
+    favoriteIds,
+  })
+  return {
+    filters,
+    programs: hits.map((hit) => ({
+      id: hit.id,
+      title: hit.title,
+      channelId: hit.channelId,
+      channelName: hit.channelName,
+      category: hit.category,
+      start: hit.start,
+      end: hit.end,
+      durationMs: hit.durationMs,
+    })),
+  }
 }
 
 function stepId(tool: string, index: number) {
@@ -201,13 +184,18 @@ export function planAgentSteps(
     q.includes('what is on') ||
     q.includes("what's on") ||
     q.includes('epg') ||
-    /\bsearch guide\b/.test(q)
+    /\bsearch guide\b/.test(q) ||
+    (/\b(sports?|news|movies?|films?|kids|music|docs?)\b/.test(q) &&
+      /\b(next|under|tonight|hour|hours|min)\b/.test(q))
   ) {
     const query =
-      message.replace(/^(what('?s| is) on|search(?:\s+guide)?|find|guide)\s*/i, '').trim() ||
       message
-    push('search_epg', { query: query.slice(0, 80) })
-    push('open_guide', {})
+        .replace(/^(what('?s| is) on|search(?:\s+guide)?|find|show me|guide)\s*/i, '')
+        .trim() || message
+    push('search_epg', { query: query.slice(0, 120) })
+    if (q.includes('guide') || q.includes('epg')) {
+      push('open_guide', {})
+    }
   }
 
   if (/\b(play|switch|tune)\b/.test(q)) {
@@ -282,6 +270,7 @@ function executeStep(
             channels: context.channels,
             favorites: context.favorites,
             recentIds: context.recentIds,
+            interestTags: context.interestTags,
           },
           5,
         )
@@ -297,20 +286,36 @@ function executeStep(
         }
       }
       case 'search_epg': {
-        const programs = searchEpgPrograms(
+        const { filters, programs } = searchEpgPrograms(
           step.input.query || '',
           context.channels,
           context.epg ?? [],
+          8,
+          context.favorites,
         )
         return {
           ...step,
           risk,
           status: 'executed',
-          result:
-            programs.length > 0
-              ? `Found ${programs.length} guide matches: ${programs.map((p) => p.title).join(', ')}.`
-              : 'No matching guide entries for that query.',
-          data: { programs },
+          result: formatNlEpgSummary(
+            filters,
+            programs.map((p) => ({
+              ...p,
+              start: p.start ?? 0,
+              end: p.end ?? 0,
+              durationMs: p.durationMs ?? 0,
+              score: 0,
+            })),
+          ),
+          data: {
+            programs,
+            epgFilters: {
+              category: filters.category,
+              windowStartMs: filters.windowStartMs,
+              windowEndMs: filters.windowEndMs,
+              maxDurationMs: filters.maxDurationMs,
+            },
+          },
         }
       }
       case 'open_guide':

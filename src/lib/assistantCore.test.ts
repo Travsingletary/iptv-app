@@ -123,4 +123,21 @@ describe('resolveAssistantReply', () => {
       true,
     )
   })
+
+  it('executes NL sports EPG search with structured fields', async () => {
+    const result = await resolveAssistantReply('sports in next 2 hours', {
+      view: 'guide',
+      currentChannelId: null,
+      favorites: ['live_arena_sports'],
+      recentIds: [],
+      channels: DEMO_CHANNELS,
+      epg: DEMO_EPG,
+    })
+
+    const search = result.toolCalls.find((tool) => tool.tool === 'search_epg')
+    expect(search?.status).toBe('executed')
+    expect(search?.data?.programs?.length).toBeGreaterThan(0)
+    expect(search?.data?.epgFilters?.category).toBe('Sports')
+    expect(search?.data?.programs?.[0]?.start).toBeTypeOf('number')
+  })
 })

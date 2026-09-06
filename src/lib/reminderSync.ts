@@ -5,7 +5,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { ProgramReminder } from '../types/iptv.js'
 
+export type ReminderSyncStatus = 'local_only' | 'idle' | 'syncing' | 'synced' | 'error'
+
 let client: SupabaseClient | null | undefined
+let lastStatus: ReminderSyncStatus = 'local_only'
+let lastError: string | null = null
+let lastSyncedAt: number | null = null
 
 function getClient(): SupabaseClient | null {
   if (client !== undefined) return client
@@ -13,14 +18,31 @@ function getClient(): SupabaseClient | null {
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
   if (!url || !key) {
     client = null
+    lastStatus = 'local_only'
     return null
   }
   client = createClient(url, key)
+  lastStatus = 'idle'
   return client
 }
 
 export function isReminderSyncConfigured(): boolean {
   return Boolean(getClient())
+}
+
+export function getReminderSyncState(): {
+  status: ReminderSyncStatus
+  error: string | null
+  syncedAt: number | null
+  configured: boolean
+} {
+  const configured = isReminderSyncConfigured()
+  return {
+    status: configured ? lastStatus : 'local_only',
+    error: lastError,
+    syncedAt: lastSyncedAt,
+    configured,
+  }
 }
 
 interface ReminderRow {
@@ -68,13 +90,31 @@ export async function syncRemindersToSupabase(
   reminders: ProgramReminder[],
 ): Promise<boolean> {
   const sb = getClient()
-  if (!sb || !reminders.length) return false
+  if (!sb) {
+    lastStatus = 'local_only'
+    return false
+  }
+  if (!reminders.length) {
+    lastStatus = 'idle'
+    return false
+  }
+  lastStatus = 'syncing'
+  lastError = null
   try {
     const { error } = await sb.from('program_reminders').upsert(reminders.map(toRow), {
       onConflict: 'id',
     })
-    return !error
-  } catch {
+    if (error) {
+      lastStatus = 'error'
+      lastError = error.message
+      return false
+    }
+    lastStatus = 'synced'
+    lastSyncedAt = Date.now()
+    return true
+  } catch (err) {
+    lastStatus = 'error'
+    lastError = err instanceof Error ? err.message : 'sync failed'
     return false
   }
 }
@@ -82,6 +122,7 @@ export async function syncRemindersToSupabase(
 export async function fetchRemindersFromSupabase(): Promise<ProgramReminder[] | null> {
   const sb = getClient()
   if (!sb) return null
+  lastStatus = 'syncing'
   try {
     const { data, error } = await sb
       .from('program_reminders')
@@ -89,9 +130,17 @@ export async function fetchRemindersFromSupabase(): Promise<ProgramReminder[] | 
       .eq('dismissed', false)
       .order('fire_at_ms', { ascending: true })
       .limit(80)
-    if (error || !data) return null
+    if (error || !data) {
+      lastStatus = 'error'
+      lastError = error?.message ?? 'fetch failed'
+      return null
+    }
+    lastStatus = 'synced'
+    lastSyncedAt = Date.now()
     return (data as ReminderRow[]).map(fromRow)
-  } catch {
+  } catch (err) {
+    lastStatus = 'error'
+    lastError = err instanceof Error ? err.message : 'fetch failed'
     return null
   }
 }

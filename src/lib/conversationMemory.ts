@@ -4,50 +4,64 @@ export interface ConversationTurn {
   at: number
 }
 
-const STORAGE_KEY = 'aether_assistant_memory_v1'
+import { profileMemoryKey } from './profiles.js'
+
+const LEGACY_KEY = 'aether_assistant_memory_v1'
 const MAX_TURNS = 24
 
-let sessionMemory: ConversationTurn[] = []
+const sessionByProfile = new Map<string, ConversationTurn[]>()
 
 function canUseStorage() {
   return typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined'
 }
 
-export function loadConversationMemory(): ConversationTurn[] {
-  if (sessionMemory.length) return sessionMemory.slice()
+export function loadConversationMemory(profileId = 'profile_household'): ConversationTurn[] {
+  const cached = sessionByProfile.get(profileId)
+  if (cached?.length) return cached.slice()
   if (!canUseStorage()) return []
   try {
-    const raw = globalThis.localStorage.getItem(STORAGE_KEY)
+    const key = profileMemoryKey(profileId)
+    let raw = globalThis.localStorage.getItem(key)
+    // Migrate legacy single-bucket memory into default household once.
+    if (!raw && profileId === 'profile_household') {
+      raw = globalThis.localStorage.getItem(LEGACY_KEY)
+    }
     if (!raw) return []
     const parsed = JSON.parse(raw) as ConversationTurn[]
     if (!Array.isArray(parsed)) return []
-    sessionMemory = parsed.slice(-MAX_TURNS)
-    return sessionMemory.slice()
+    const turns = parsed.slice(-MAX_TURNS)
+    sessionByProfile.set(profileId, turns)
+    return turns.slice()
   } catch {
     return []
   }
 }
 
-export function saveConversationMemory(turns: ConversationTurn[]): void {
-  sessionMemory = turns.slice(-MAX_TURNS)
+export function saveConversationMemory(
+  turns: ConversationTurn[],
+  profileId = 'profile_household',
+): void {
+  const next = turns.slice(-MAX_TURNS)
+  sessionByProfile.set(profileId, next)
   if (!canUseStorage()) return
-  globalThis.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionMemory))
+  globalThis.localStorage.setItem(profileMemoryKey(profileId), JSON.stringify(next))
 }
 
 export function appendConversationTurn(
   role: ConversationTurn['role'],
   text: string,
   at = Date.now(),
+  profileId = 'profile_household',
 ): ConversationTurn[] {
-  const next = [...loadConversationMemory(), { role, text, at }].slice(-MAX_TURNS)
-  saveConversationMemory(next)
+  const next = [...loadConversationMemory(profileId), { role, text, at }].slice(-MAX_TURNS)
+  saveConversationMemory(next, profileId)
   return next
 }
 
-export function clearConversationMemory(): void {
-  sessionMemory = []
+export function clearConversationMemory(profileId = 'profile_household'): void {
+  sessionByProfile.delete(profileId)
   if (!canUseStorage()) return
-  globalThis.localStorage.removeItem(STORAGE_KEY)
+  globalThis.localStorage.removeItem(profileMemoryKey(profileId))
 }
 
 export function memoryAsHistory(

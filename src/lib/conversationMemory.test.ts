@@ -8,14 +8,18 @@ import {
 } from './conversationMemory'
 
 describe('conversationMemory', () => {
-  it('persists turns in session and exposes history', () => {
-    clearConversationMemory()
-    appendConversationTurn('user', 'Mute')
-    appendConversationTurn('assistant', 'Audio muted.')
-    const loaded = loadConversationMemory()
-    expect(loaded).toHaveLength(2)
-    expect(memoryAsHistory(loaded, 1)).toEqual([{ role: 'assistant', text: 'Audio muted.' }])
-    saveConversationMemory([])
-    expect(loadConversationMemory()).toHaveLength(0)
+  it('persists turns per profile and exposes history', () => {
+    clearConversationMemory('profile_a')
+    clearConversationMemory('profile_b')
+    appendConversationTurn('user', 'Mute', Date.now(), 'profile_a')
+    appendConversationTurn('assistant', 'Audio muted.', Date.now(), 'profile_a')
+    appendConversationTurn('user', 'Kids shows', Date.now(), 'profile_b')
+    expect(loadConversationMemory('profile_a')).toHaveLength(2)
+    expect(loadConversationMemory('profile_b')).toHaveLength(1)
+    expect(memoryAsHistory(loadConversationMemory('profile_a'), 1)).toEqual([
+      { role: 'assistant', text: 'Audio muted.' },
+    ])
+    saveConversationMemory([], 'profile_a')
+    expect(loadConversationMemory('profile_a')).toHaveLength(0)
   })
 })

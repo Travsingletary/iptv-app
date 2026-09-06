@@ -113,10 +113,11 @@ const server = http.createServer(async (req, res) => {
         return
       }
       const result = await resolveAssistantReply(message, context, {
-        modelConfigured: Boolean(process.env.AI_PROVIDER || process.env.OPENAI_API_KEY),
+        modelConfigured: Boolean(process.env.OPENAI_API_KEY),
         apiKey: process.env.OPENAI_API_KEY,
         provider: process.env.AI_PROVIDER,
         baseUrl: process.env.OPENAI_BASE_URL,
+        model: process.env.OPENAI_MODEL,
         confirmed: Boolean(parsed.confirmed),
       })
       sendJson(res, 200, result)

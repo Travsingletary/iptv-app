@@ -1,12 +1,28 @@
 /**
- * Optional OpenAI-compatible chat + tools adapter.
- * Returns null when keys are missing or the request fails so callers
- * can fall back to the deterministic mock agent.
+ * Optional OpenAI-compatible chat + multi-round tools loop.
+ * Mock agent remains the default when keys are missing.
  */
+import { isToolAllowed, runAgentTurn, type AgentStep } from './agentLoop.js'
+import type {
+  AssistantContextSnapshot,
+  AssistantToolCall,
+} from './assistantCore.js'
 
 export interface ProviderMessage {
-  role: 'system' | 'user' | 'assistant'
+  role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
+  tool_call_id?: string
+  tool_calls?: ProviderToolCall[]
+  name?: string
+}
+
+export interface ProviderToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
 }
 
 export interface ProviderToolDefinition {
@@ -20,9 +36,7 @@ export interface ProviderToolDefinition {
 
 export interface ProviderChatOptions {
   apiKey: string
-  /** e.g. openai | compatible */
   provider?: string
-  /** Override base URL for OpenAI-compatible gateways. */
   baseUrl?: string
   model?: string
   messages: ProviderMessage[]
@@ -30,6 +44,14 @@ export interface ProviderChatOptions {
   temperature?: number
 }
 
+export interface ProviderRoundResult {
+  content: string
+  toolCalls: ProviderToolCall[]
+  rawModel: string
+  finishReason?: string
+}
+
+/** @deprecated Prefer ProviderRoundResult + runProviderToolLoop */
 export interface ProviderChatResult {
   content: string
   toolNames: string[]
@@ -85,7 +107,8 @@ const DEFAULT_TOOLS: ProviderToolDefinition[] = [
     type: 'function',
     function: {
       name: 'search_epg',
-      description: 'Search the electronic program guide',
+      description:
+        'Search the electronic program guide. Supports NL like sports in next 2 hours or movies under 2h.',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string' } },
@@ -109,25 +132,47 @@ const DEFAULT_TOOLS: ProviderToolDefinition[] = [
       parameters: { type: 'object', properties: {} },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'suggest_fallback',
+      description: 'Suggest an alternate stream in the same group',
+      parameters: {
+        type: 'object',
+        properties: { channelId: { type: 'string' } },
+      },
+    },
+  },
 ]
 
 export function isProviderConfigured(env: {
   apiKey?: string
   provider?: string
 }): boolean {
-  return Boolean(env.apiKey || env.provider)
+  return Boolean(env.apiKey)
 }
 
-export async function chatWithTools(
+function processEnv(key: string): string | undefined {
+  try {
+    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+      .process
+    return proc?.env?.[key]
+  } catch {
+    return undefined
+  }
+}
+
+/** Single chat/completions round. */
+export async function chatCompletionsRound(
   options: ProviderChatOptions,
-): Promise<ProviderChatResult | null> {
+): Promise<ProviderRoundResult | null> {
   if (!options.apiKey) return null
 
-  const base =
-    (options.baseUrl || processEnv('OPENAI_BASE_URL') || 'https://api.openai.com/v1').replace(
-      /\/$/,
-      '',
-    )
+  const base = (
+    options.baseUrl ||
+    processEnv('OPENAI_BASE_URL') ||
+    'https://api.openai.com/v1'
+  ).replace(/\/$/, '')
   const model = options.model || processEnv('OPENAI_MODEL') || 'gpt-4o-mini'
 
   try {
@@ -147,40 +192,236 @@ export async function chatWithTools(
     if (!res.ok) return null
     const json = (await res.json()) as {
       choices?: Array<{
+        finish_reason?: string
         message?: {
           content?: string | null
-          tool_calls?: Array<{ function?: { name?: string } }>
+          tool_calls?: ProviderToolCall[]
         }
       }>
     }
-    const message = json.choices?.[0]?.message
+    const choice = json.choices?.[0]
+    const message = choice?.message
     const content = message?.content?.trim() || ''
-    const toolNames =
-      message?.tool_calls
-        ?.map((t) => t.function?.name)
-        .filter((n): n is string => Boolean(n)) ?? []
-    if (!content && !toolNames.length) return null
+    const toolCalls = message?.tool_calls ?? []
+    if (!content && !toolCalls.length) return null
     return {
-      content:
-        content ||
-        (toolNames.length
-          ? `I'll run: ${toolNames.join(', ')}.`
-          : 'Done.'),
-      toolNames,
+      content,
+      toolCalls,
       rawModel: model,
+      finishReason: choice?.finish_reason,
     }
   } catch {
     return null
   }
 }
 
-function processEnv(key: string): string | undefined {
+/** Legacy single-shot helper used by older callers/tests. */
+export async function chatWithTools(
+  options: ProviderChatOptions,
+): Promise<ProviderChatResult | null> {
+  const round = await chatCompletionsRound(options)
+  if (!round) return null
+  return {
+    content:
+      round.content ||
+      (round.toolCalls.length
+        ? `I'll run: ${round.toolCalls.map((t) => t.function.name).join(', ')}.`
+        : 'Done.'),
+    toolNames: round.toolCalls.map((t) => t.function.name).filter(Boolean),
+    rawModel: round.rawModel,
+  }
+}
+
+export interface ProviderToolLoopResult {
+  response: string
+  toolCalls: AssistantToolCall[]
+  steps: AgentStep[]
+  needsConfirmation: boolean
+  providerModel: string
+  rounds: number
+}
+
+function parseToolArgs(raw: string): Record<string, string> {
   try {
-    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } })
-      .process
-    return proc?.env?.[key]
+    const parsed = JSON.parse(raw || '{}') as Record<string, unknown>
+    const out: Record<string, string> = {}
+    for (const [k, v] of Object.entries(parsed)) {
+      out[k] = typeof v === 'boolean' || typeof v === 'number' ? String(v) : String(v ?? '')
+    }
+    return out
   } catch {
-    return undefined
+    return { query: raw }
+  }
+}
+
+/**
+ * Robust OpenAI-compatible tools loop:
+ * model → tool_calls → local allowlisted execution → tool results → model…
+ * Falls back to null so callers can use the mock agent.
+ */
+export async function runProviderToolLoop(
+  message: string,
+  context: AssistantContextSnapshot,
+  options: {
+    apiKey: string
+    provider?: string
+    baseUrl?: string
+    model?: string
+    confirmed?: boolean
+    maxRounds?: number
+  },
+): Promise<ProviderToolLoopResult | null> {
+  if (!options.apiKey) return null
+
+  const history = (context.history ?? []).slice(-8).map((turn) => ({
+    role: (turn.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+    content: turn.text,
+  }))
+
+  const messages: ProviderMessage[] = [
+    {
+      role: 'system',
+      content: [
+        'You are Aether, a concise IPTV assistant.',
+        'Use tools for play, mute, remind, recommend, EPG search, guide, fallbacks.',
+        'Prefer short replies. Never invent channel IDs — use tool results.',
+        `Context: view=${context.view} channel=${context.currentChannelId ?? 'none'} favorites=${context.favorites.slice(0, 8).join(',')}`,
+      ].join(' '),
+    },
+    ...history,
+    { role: 'user', content: message },
+  ]
+
+  const allSteps: AgentStep[] = []
+  const allToolCalls: AssistantToolCall[] = []
+  let needsConfirmation = false
+  let lastContent = ''
+  let model = options.model || 'gpt-4o-mini'
+  const maxRounds = options.maxRounds ?? 4
+
+  for (let round = 0; round < maxRounds; round += 1) {
+    const result = await chatCompletionsRound({
+      apiKey: options.apiKey,
+      provider: options.provider,
+      baseUrl: options.baseUrl,
+      model: options.model,
+      messages,
+      tools: DEFAULT_TOOLS,
+    })
+    if (!result) {
+      if (round === 0) return null
+      break
+    }
+    model = result.rawModel
+    lastContent = result.content
+
+    if (!result.toolCalls.length) {
+      return {
+        response: lastContent || 'Done.',
+        toolCalls: allToolCalls,
+        steps: allSteps,
+        needsConfirmation,
+        providerModel: model,
+        rounds: round + 1,
+      }
+    }
+
+    messages.push({
+      role: 'assistant',
+      content: result.content || '',
+      tool_calls: result.toolCalls,
+    })
+
+    for (const call of result.toolCalls) {
+      const name = call.function?.name || ''
+      const input = parseToolArgs(call.function?.arguments || '{}')
+
+      if (!isToolAllowed(name)) {
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          name,
+          content: JSON.stringify({ error: 'Tool not on allowlist' }),
+        })
+        continue
+      }
+
+      // Build a synthetic utterance the local agent understands for this tool
+      const synthetic = syntheticMessageForTool(name, input, message)
+      const local = runAgentTurn(synthetic, context, { confirmed: options.confirmed })
+      allSteps.push(...local.steps)
+      allToolCalls.push(...local.toolCalls)
+      if (local.needsConfirmation) needsConfirmation = true
+
+      const payload = {
+        result: local.response,
+        steps: local.steps.map((s) => ({
+          tool: s.tool,
+          status: s.status,
+          result: s.result,
+          data: s.data,
+        })),
+        needsConfirmation: local.needsConfirmation,
+      }
+      messages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        name,
+        content: JSON.stringify(payload),
+      })
+    }
+  }
+
+  // Final summarize pass without tools if we still have tool chatter
+  const summary = await chatCompletionsRound({
+    apiKey: options.apiKey,
+    provider: options.provider,
+    baseUrl: options.baseUrl,
+    model: options.model,
+    messages: [
+      ...messages,
+      {
+        role: 'user',
+        content: 'Summarize what you did in one short sentence for the viewer.',
+      },
+    ],
+    tools: [],
+  })
+
+  return {
+    response: summary?.content || lastContent || 'Done.',
+    toolCalls: allToolCalls,
+    steps: allSteps,
+    needsConfirmation,
+    providerModel: model,
+    rounds: maxRounds,
+  }
+}
+
+function syntheticMessageForTool(
+  tool: string,
+  input: Record<string, string>,
+  original: string,
+): string {
+  switch (tool) {
+    case 'set_mute':
+      return input.muted === 'false' ? 'unmute' : 'mute'
+    case 'set_reminder':
+      return `Remind me ${input.query || original}`
+    case 'recommend_now':
+      return 'Recommend something to watch'
+    case 'search_epg':
+      return `What is on ${input.query || original}`
+    case 'open_guide':
+      return 'Open the guide'
+    case 'play_channel':
+      return `Play ${input.channelId || original}`
+    case 'clear_reminders':
+      return 'Clear all reminders'
+    case 'suggest_fallback':
+      return 'Suggest a fallback alternate stream'
+    default:
+      return original
   }
 }
 

@@ -1,5 +1,124 @@
 import { useState, type FormEvent } from 'react'
 import { useIptvStore } from '../store/useIptvStore'
+import { getActiveProfile } from '../lib/profiles'
+
+
+function ProfilesSection() {
+  const profiles = useIptvStore((s) => s.profiles)
+  const createProfile = useIptvStore((s) => s.createProfile)
+  const switchProfile = useIptvStore((s) => s.switchProfile)
+  const updateActiveProfile = useIptvStore((s) => s.updateActiveProfile)
+  const removeProfile = useIptvStore((s) => s.removeProfile)
+  const [name, setName] = useState('')
+  const [tags, setTags] = useState('sports')
+  const active = getActiveProfile(profiles)
+
+  return (
+    <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold">Household profiles</h2>
+        <p className="mt-1 text-sm text-mist-300">
+          Separate favorites bias and assistant memory per viewer. Active: {active.name}.
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {profiles.profiles.map((profile) => {
+          const selected = profile.id === profiles.activeProfileId
+          return (
+            <li
+              key={profile.id}
+              className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+                selected
+                  ? 'border-ember-400/40 bg-ember-500/10'
+                  : 'border-white/8 bg-ink-850/80'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => switchProfile(profile.id)}
+                className="min-w-0 flex-1 text-left"
+                aria-label={`Switch to profile ${profile.name}`}
+              >
+                <p className="text-sm font-medium text-sand-50">{profile.name}</p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-mist-400">
+                  {profile.interestTags.length
+                    ? profile.interestTags.join(' · ')
+                    : 'no interest tags'}
+                  {' · '}
+                  {profile.favorites.length} favorites
+                </p>
+              </button>
+              {profiles.profiles.length > 1 && (
+                <button
+                  type="button"
+                  className="text-xs text-red-300 hover:text-red-200"
+                  onClick={() => removeProfile(profile.id)}
+                >
+                  Remove
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      <label className="block text-sm">
+        Active profile interest tags (comma-separated)
+        <input
+          value={active.interestTags.join(', ')}
+          onChange={(e) =>
+            updateActiveProfile({
+              interestTags: e.target.value
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean),
+            })
+          }
+          className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+          aria-label="Active profile interest tags"
+        />
+      </label>
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (!name.trim()) return
+          createProfile(
+            name.trim(),
+            tags
+              .split(',')
+              .map((t) => t.trim())
+              .filter(Boolean),
+          )
+          setName('')
+        }}
+      >
+        <label className="block min-w-[10rem] flex-1 text-sm">
+          New profile name
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+          />
+        </label>
+        <label className="block min-w-[10rem] flex-1 text-sm">
+          Interests
+          <input
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={!name.trim()}
+          className="rounded-full bg-sand-50 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-40"
+        >
+          Add profile
+        </button>
+      </form>
+    </section>
+  )
+}
 
 function AutomationRulesSection() {
   const rules = useIptvStore((s) => s.automationRules)
@@ -237,6 +356,8 @@ export function SettingsPage() {
           </p>
         )}
       </section>
+
+      <ProfilesSection />
 
       <AutomationRulesSection />
 
