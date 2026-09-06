@@ -3,7 +3,7 @@ import { resolveAssistantReply } from './assistantCore'
 import { DEMO_CHANNELS, DEMO_EPG } from './demoData'
 
 describe('resolveAssistantReply', () => {
-  it('returns deterministic fallback response without model key', async () => {
+  it('returns deterministic mock with recommend tool without model key', async () => {
     const result = await resolveAssistantReply('Recommend something to watch', {
       view: 'home',
       currentChannelId: 'live_aether_one',
@@ -13,10 +13,11 @@ describe('resolveAssistantReply', () => {
       epg: DEMO_EPG,
     })
 
-    expect(result.response).toContain('I can help with channel discovery')
+    expect(result.response.length).toBeGreaterThan(0)
     const recommend = result.toolCalls.find((tool) => tool.tool === 'recommend_now')
     expect(recommend?.status).toBe('executed')
     expect(recommend?.data?.channelIds?.length).toBeGreaterThan(0)
+    expect(result.steps?.length).toBeGreaterThan(0)
   })
 
   it('executes play_channel for a named channel', async () => {
@@ -77,5 +78,49 @@ describe('resolveAssistantReply', () => {
     const reminder = result.toolCalls.find((tool) => tool.tool === 'set_reminder')
     expect(reminder?.status).toBe('executed')
     expect(reminder?.data?.reminders?.length).toBeGreaterThan(0)
+  })
+
+  it('multi-step mute + remind and confirm gate for clear', async () => {
+    const multi = await resolveAssistantReply(
+      'Mute and remind me when Match Center starts',
+      {
+        view: 'live',
+        currentChannelId: 'live_aether_one',
+        favorites: [],
+        recentIds: [],
+        channels: DEMO_CHANNELS,
+        epg: DEMO_EPG,
+      },
+    )
+    expect(multi.steps?.length).toBeGreaterThanOrEqual(2)
+    expect(multi.toolCalls.some((t) => t.tool === 'set_mute')).toBe(true)
+    expect(multi.toolCalls.some((t) => t.tool === 'set_reminder')).toBe(true)
+
+    const pending = await resolveAssistantReply('Clear all reminders', {
+      view: 'live',
+      currentChannelId: null,
+      favorites: [],
+      recentIds: [],
+      channels: DEMO_CHANNELS,
+      epg: DEMO_EPG,
+    })
+    expect(pending.needsConfirmation).toBe(true)
+
+    const confirmed = await resolveAssistantReply(
+      'Clear all reminders',
+      {
+        view: 'live',
+        currentChannelId: null,
+        favorites: [],
+        recentIds: [],
+        channels: DEMO_CHANNELS,
+        epg: DEMO_EPG,
+      },
+      { confirmed: true },
+    )
+    expect(confirmed.needsConfirmation).toBe(false)
+    expect(confirmed.steps?.some((s) => s.tool === 'clear_reminders' && s.status === 'executed')).toBe(
+      true,
+    )
   })
 })

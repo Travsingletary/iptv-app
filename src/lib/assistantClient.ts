@@ -9,12 +9,17 @@ import { resolveAssistantReply } from './assistantCore'
 export async function askAssistant(
   message: string,
   context: AssistantContextSnapshot,
+  options: { confirmed?: boolean } = {},
 ): Promise<{ result: AssistantApiResult; source: 'api' | 'local' }> {
   try {
     const response = await fetch('/api/assistant', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify({
+        message,
+        context,
+        confirmed: options.confirmed ?? false,
+      }),
     })
     if (response.ok) {
       const result = (await response.json()) as AssistantApiResult
@@ -33,6 +38,8 @@ export async function askAssistant(
     modelConfigured,
     apiKey,
     provider: import.meta.env.VITE_AI_PROVIDER as string | undefined,
+    baseUrl: import.meta.env.VITE_OPENAI_BASE_URL as string | undefined,
+    confirmed: options.confirmed,
   })
   return { result, source: 'local' }
 }

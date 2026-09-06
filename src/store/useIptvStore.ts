@@ -20,7 +20,18 @@ import {
   saveReminders,
   type ReminderDraft,
 } from '../lib/reminders'
+import { syncRemindersToSupabase } from '../lib/reminderSync'
 import { suggestStreamFallbacks } from '../lib/streamFallback'
+import {
+  evaluateAutomationRules,
+  episodeKeysForActions,
+  loadAutomationRules,
+  saveAutomationRules,
+  setRuleEnabled as setRuleEnabledPure,
+  updateRuleParams as updateRuleParamsPure,
+  type AutomationAction,
+  type AutomationRule,
+} from '../lib/automationRules'
 
 interface IptvState {
   onboarded: boolean
@@ -37,6 +48,10 @@ interface IptvState {
   prefs: UiPrefs
   reminders: ProgramReminder[]
   reminderToasts: ProgramReminder[]
+  automationRules: AutomationRule[]
+  automationToasts: AutomationAction[]
+  bufferingStartedAt: number | null
+  automationFiredKeys: string[]
   setView: (view: AppView) => void
   completeOnboarding: () => void
   setSearch: (q: string) => void
@@ -53,8 +68,16 @@ interface IptvState {
   refreshDemoGuide: () => void
   addReminder: (draft: ReminderDraft) => ProgramReminder
   dismissReminder: (id: string) => void
+  clearAllReminders: () => void
   clearReminderToast: (id: string) => void
   tickReminders: (now?: number) => void
+  setAutomationRuleEnabled: (id: string, enabled: boolean) => void
+  setAutomationRuleParams: (
+    id: string,
+    patch: Partial<Pick<AutomationRule, 'bufferingSeconds' | 'leadMinutes'>>,
+  ) => void
+  clearAutomationToast: (id: string) => void
+  tickAutomation: (now?: number) => void
 }
 
 const defaultPlayer: PlayerState = {
@@ -92,6 +115,10 @@ export const useIptvStore = create<IptvState>()(
       prefs: defaultPrefs,
       reminders: loadReminders(),
       reminderToasts: [],
+      automationRules: loadAutomationRules(),
+      automationToasts: [],
+      bufferingStartedAt: null,
+      automationFiredKeys: [],
 
       setView: (view) => set({ view }),
 
@@ -133,6 +160,7 @@ export const useIptvStore = create<IptvState>()(
               buffering: true,
               fallbackSuggestions: [],
             },
+            bufferingStartedAt: Date.now(),
             recentIds: [
               channelId,
               ...s.recentIds.filter((id) => id !== channelId),
@@ -146,7 +174,17 @@ export const useIptvStore = create<IptvState>()(
         }),
 
       setPlayer: (patch) =>
-        set((s) => ({ player: { ...s.player, ...patch } })),
+        set((s) => {
+          let bufferingStartedAt = s.bufferingStartedAt
+          if (typeof patch.buffering === 'boolean') {
+            if (patch.buffering && !s.player.buffering) {
+              bufferingStartedAt = Date.now()
+            } else if (!patch.buffering) {
+              bufferingStartedAt = null
+            }
+          }
+          return { player: { ...s.player, ...patch }, bufferingStartedAt }
+        }),
 
       setStreamError: (message) =>
         set((s) => {
@@ -159,6 +197,7 @@ export const useIptvStore = create<IptvState>()(
               }))
             : []
           return {
+            bufferingStartedAt: null,
             player: {
               ...s.player,
               buffering: false,
@@ -174,6 +213,7 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = [...s.reminders.filter((r) => !r.dismissed), reminder].slice(-80)
           saveReminders(reminders)
+          void syncRemindersToSupabase(reminders)
           return { reminders }
         })
         return reminder
@@ -183,10 +223,19 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = dismissReminderPure(s.reminders, id)
           saveReminders(reminders)
+          void syncRemindersToSupabase(reminders)
           return {
             reminders,
             reminderToasts: s.reminderToasts.filter((t) => t.id !== id),
           }
+        }),
+
+      clearAllReminders: () =>
+        set((s) => {
+          const reminders = s.reminders.map((r) => ({ ...r, dismissed: true }))
+          saveReminders(reminders)
+          void syncRemindersToSupabase(reminders)
+          return { reminders, reminderToasts: [] }
         }),
 
       clearReminderToast: (id) =>
@@ -199,10 +248,104 @@ export const useIptvStore = create<IptvState>()(
           const { next, newlyFired } = markDueReminders(s.reminders, now)
           if (!newlyFired.length) return s
           saveReminders(next)
+          void syncRemindersToSupabase(next)
           return {
             reminders: next,
             reminderToasts: [...newlyFired, ...s.reminderToasts].slice(0, 5),
           }
+        }),
+
+      setAutomationRuleEnabled: (id, enabled) =>
+        set((s) => {
+          const automationRules = setRuleEnabledPure(s.automationRules, id, enabled)
+          saveAutomationRules(automationRules)
+          return { automationRules }
+        }),
+
+      setAutomationRuleParams: (id, patch) =>
+        set((s) => {
+          const automationRules = updateRuleParamsPure(s.automationRules, id, patch)
+          saveAutomationRules(automationRules)
+          return { automationRules }
+        }),
+
+      clearAutomationToast: (id) =>
+        set((s) => ({
+          automationToasts: s.automationToasts.filter((t) => t.id !== id),
+        })),
+
+      tickAutomation: (now = Date.now()) =>
+        set((s) => {
+          const actions = evaluateAutomationRules(s.automationRules, {
+            now,
+            buffering: s.player.buffering,
+            bufferingStartedAt: s.bufferingStartedAt,
+            streamError: s.player.error,
+            channelId: s.player.channelId,
+            channels: s.channels,
+            epg: s.epg,
+            favorites: s.favorites,
+            reminders: s.reminders,
+            firedEpisodeKeys: s.automationFiredKeys,
+          })
+          if (!actions.length) return s
+
+          const keys = episodeKeysForActions(actions, {
+            now,
+            buffering: s.player.buffering,
+            bufferingStartedAt: s.bufferingStartedAt,
+            streamError: s.player.error,
+            channelId: s.player.channelId,
+            channels: s.channels,
+            epg: s.epg,
+            favorites: s.favorites,
+            reminders: s.reminders,
+            firedEpisodeKeys: s.automationFiredKeys,
+          })
+
+          let reminders = s.reminders
+          let player = s.player
+          let channelSwitched: string | null = null
+
+          for (const action of actions) {
+            if (action.kind === 'schedule_favorite_reminders' && action.reminders?.length) {
+              for (const draft of action.reminders) {
+                const exists = reminders.some(
+                  (r) => !r.dismissed && r.programId === draft.programId,
+                )
+                if (exists) continue
+                reminders = [...reminders, createReminder(draft)].slice(-80)
+              }
+              saveReminders(reminders)
+              void syncRemindersToSupabase(reminders)
+            }
+            if (action.kind === 'toast_fallback_suggest' && action.fallbackSuggestions?.length) {
+              player = {
+                ...player,
+                overlayVisible: true,
+                fallbackSuggestions: action.fallbackSuggestions,
+              }
+            }
+            if (action.kind === 'auto_switch_fallback' && action.channelId) {
+              channelSwitched = action.channelId
+            }
+          }
+
+          const next: Partial<IptvState> = {
+            reminders,
+            player,
+            automationFiredKeys: [...s.automationFiredKeys, ...keys].slice(-40),
+            automationToasts: [...actions, ...s.automationToasts].slice(0, 5),
+          }
+
+          // Apply auto-switch outside this set via playChannel to keep telemetry consistent.
+          if (channelSwitched) {
+            queueMicrotask(() => {
+              get().playChannel(channelSwitched!)
+            })
+          }
+
+          return next
         }),
 
       loadDemo: () =>

@@ -5,6 +5,7 @@ import { resolveAssistantReply } from './src/lib/assistantCore.ts'
 interface AssistantRequestBody {
   message?: string
   context?: Parameters<typeof resolveAssistantReply>[1]
+  confirmed?: boolean
 }
 
 function attachAssistantMiddleware(middlewares: Connect.Server) {
@@ -36,6 +37,8 @@ function attachAssistantMiddleware(middlewares: Connect.Server) {
           modelConfigured: Boolean(process.env.AI_PROVIDER || process.env.OPENAI_API_KEY),
           apiKey: process.env.OPENAI_API_KEY,
           provider: process.env.AI_PROVIDER,
+          baseUrl: process.env.OPENAI_BASE_URL,
+          confirmed: Boolean(parsed.confirmed),
         })
         res.statusCode = 200
         res.setHeader('content-type', 'application/json')

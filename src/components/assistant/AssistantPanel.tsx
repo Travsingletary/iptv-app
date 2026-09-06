@@ -4,7 +4,13 @@ import { Bell, Mic, MicOff, MessageCircle, Send, X } from 'lucide-react'
 import { useIptvStore } from '../../store/useIptvStore'
 import { askAssistant } from '../../lib/assistantClient'
 import type { AssistantToolCall } from '../../lib/assistantCore'
+import type { AgentStep } from '../../lib/agentLoop'
 import { activeReminders } from '../../lib/reminders'
+import {
+  appendConversationTurn,
+  loadConversationMemory,
+  memoryAsHistory,
+} from '../../lib/conversationMemory'
 import {
   getSpeechRecognitionCtor,
   isSpeechRecognitionSupported,
@@ -18,6 +24,9 @@ interface AssistantMessage {
   role: 'user' | 'assistant'
   text: string
   tools?: AssistantToolCall[]
+  steps?: AgentStep[]
+  needsConfirmation?: boolean
+  pendingUserText?: string
   source?: 'api' | 'local'
 }
 
@@ -28,7 +37,7 @@ export function AssistantPanel() {
     {
       id: 'seed',
       role: 'assistant',
-      text: 'Hi, I am your Aether assistant. Ask for recommendations, reminders, mute, or channel changes. Hold the mic if your browser supports voice.',
+      text: 'Hi, I am your Aether assistant. I can run multi-step plans — mute + remind, recommend + play, or clear reminders with confirmation. Hold the mic if your browser supports voice.',
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -48,8 +57,10 @@ export function AssistantPanel() {
   const setView = useIptvStore((s) => s.setView)
   const addReminder = useIptvStore((s) => s.addReminder)
   const dismissReminder = useIptvStore((s) => s.dismissReminder)
+  const clearAllReminders = useIptvStore((s) => s.clearAllReminders)
   const reminders = useIptvStore((s) => s.reminders)
   const tickReminders = useIptvStore((s) => s.tickReminders)
+  const tickAutomation = useIptvStore((s) => s.tickAutomation)
 
   const speechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
   const upcomingReminders = useMemo(() => activeReminders(reminders).slice(0, 6), [reminders])
@@ -62,19 +73,20 @@ export function AssistantPanel() {
       channels,
       epg,
       currentChannelId,
-      history: messages
-        .filter((m) => m.id !== 'seed')
-        .slice(-6)
-        .map((m) => ({ role: m.role, text: m.text })),
+      history: memoryAsHistory(loadConversationMemory(), 8),
     }),
-    [channels, currentChannelId, epg, favorites, messages, recentIds, view],
+    [channels, currentChannelId, epg, favorites, recentIds, view, messages],
   )
 
   useEffect(() => {
-    const id = window.setInterval(() => tickReminders(), 15_000)
+    const id = window.setInterval(() => {
+      tickReminders()
+      tickAutomation()
+    }, 5_000)
     tickReminders()
+    tickAutomation()
     return () => window.clearInterval(id)
-  }, [tickReminders])
+  }, [tickReminders, tickAutomation])
 
   useEffect(() => {
     return () => {
@@ -83,7 +95,7 @@ export function AssistantPanel() {
     }
   }, [])
 
-  const applyToolCalls = (toolCalls: AssistantToolCall[]) => {
+  const applyToolCalls = (toolCalls: AssistantToolCall[], steps?: AgentStep[]) => {
     for (const tool of toolCalls) {
       if (tool.tool === 'play_channel' && tool.data?.channelId) {
         playChannel(tool.data.channelId)
@@ -100,25 +112,32 @@ export function AssistantPanel() {
         }
       }
     }
+    if (steps?.some((s) => s.tool === 'clear_reminders' && s.status === 'executed')) {
+      clearAllReminders()
+    }
   }
 
-  const submitMessage = async (message: string) => {
+  const submitMessage = async (message: string, confirmed = false) => {
     const trimmed = message.trim()
     if (!trimmed || loading) return
 
-    const userMessage: AssistantMessage = {
-      id: `u_${Date.now().toString(36)}`,
-      role: 'user',
-      text: trimmed,
+    if (!confirmed) {
+      const userMessage: AssistantMessage = {
+        id: `u_${Date.now().toString(36)}`,
+        role: 'user',
+        text: trimmed,
+      }
+      setMessages((prev) => [...prev, userMessage])
+      appendConversationTurn('user', trimmed)
+      setInput('')
     }
-    setMessages((prev) => [...prev, userMessage])
-    setInput('')
     setError(null)
     setLoading(true)
 
     try {
-      const { result, source } = await askAssistant(trimmed, snapshot)
-      applyToolCalls(result.toolCalls)
+      const { result, source } = await askAssistant(trimmed, snapshot, { confirmed })
+      applyToolCalls(result.toolCalls, result.steps)
+      appendConversationTurn('assistant', result.response)
 
       setMessages((prev) => [
         ...prev,
@@ -127,6 +146,9 @@ export function AssistantPanel() {
           role: 'assistant',
           text: result.response,
           tools: result.toolCalls,
+          steps: result.steps,
+          needsConfirmation: result.needsConfirmation,
+          pendingUserText: result.needsConfirmation ? trimmed : undefined,
           source,
         },
       ])
@@ -203,7 +225,7 @@ export function AssistantPanel() {
             <div>
               <p className="font-display text-lg font-bold">Aether Assistant</p>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
-                Phase 2 · voice · reminders
+                Phase 3 · agent · automation
               </p>
             </div>
             <button
@@ -274,6 +296,11 @@ export function AssistantPanel() {
                     Local fallback
                   </p>
                 )}
+                {message.steps && message.steps.length > 1 && (
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-ember-300">
+                    {message.steps.length}-step plan
+                  </p>
+                )}
                 {message.tools?.map((tool) => (
                   <div
                     key={`${message.id}_${tool.tool}_${tool.result}`}
@@ -330,6 +357,29 @@ export function AssistantPanel() {
                     )}
                   </div>
                 ))}
+                {message.steps
+                  ?.filter((s) => s.status === 'pending_confirm')
+                  .map((step) => (
+                    <div
+                      key={`${message.id}_${step.id}`}
+                      className="mt-2 rounded-xl border border-ember-400/40 bg-ember-500/10 p-2"
+                    >
+                      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ember-300">
+                        {step.tool} · pending confirm
+                      </p>
+                      <p className="mt-1 text-xs text-mist-100">{step.result}</p>
+                    </div>
+                  ))}
+                {message.needsConfirmation && message.pendingUserText && (
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => void submitMessage(message.pendingUserText!, true)}
+                    className="mt-2 rounded-lg bg-ember-500 px-3 py-1.5 text-xs font-semibold text-ink-950"
+                  >
+                    Confirm action
+                  </button>
+                )}
               </div>
             ))}
             {loading && (

@@ -11,3 +11,8 @@
 - If verification fails, fix first — then re-verify.
 - Prefer honest partial/failed status over claiming success.
 - Applies to all Cursor agents working in this repository.
+
+## Phase status
+
+- Phase 2 verified: voice intents, reminders, stream fallback chips (`e2e/verify-phase2.mjs`).
+- Phase 3: agent loop (`agentLoop`), automation rules, OpenAI-compatible provider adapter (env-gated), optional Supabase reminder sync.

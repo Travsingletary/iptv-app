@@ -1,6 +1,80 @@
 import { useState, type FormEvent } from 'react'
 import { useIptvStore } from '../store/useIptvStore'
 
+function AutomationRulesSection() {
+  const rules = useIptvStore((s) => s.automationRules)
+  const setEnabled = useIptvStore((s) => s.setAutomationRuleEnabled)
+  const setParams = useIptvStore((s) => s.setAutomationRuleParams)
+
+  return (
+    <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold">Automation rules</h2>
+        <p className="mt-1 text-sm text-mist-300">
+          Phase 3 agent automations. Rules persist locally; toasts fire when triggered.
+        </p>
+      </div>
+      <ul className="space-y-3">
+        {rules.map((rule) => (
+          <li
+            key={rule.id}
+            className="rounded-xl border border-white/8 bg-ink-850/80 px-4 py-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-sand-50">{rule.label}</p>
+                <p className="mt-0.5 text-xs text-mist-400">{rule.description}</p>
+              </div>
+              <label className="flex shrink-0 items-center gap-2 text-xs text-mist-200">
+                Enabled
+                <input
+                  type="checkbox"
+                  checked={rule.enabled}
+                  onChange={(e) => setEnabled(rule.id, e.target.checked)}
+                  className="accent-ember-400"
+                  aria-label={`Toggle ${rule.label}`}
+                />
+              </label>
+            </div>
+            {rule.kind === 'buffering_fallback_suggest' && (
+              <label className="mt-3 block text-xs text-mist-300">
+                Buffering threshold ({rule.bufferingSeconds}s)
+                <input
+                  type="range"
+                  min={3}
+                  max={20}
+                  step={1}
+                  value={rule.bufferingSeconds}
+                  onChange={(e) =>
+                    setParams(rule.id, { bufferingSeconds: Number(e.target.value) })
+                  }
+                  className="mt-1 w-full accent-ember-400"
+                />
+              </label>
+            )}
+            {rule.kind === 'favorite_start_remind' && (
+              <label className="mt-3 block text-xs text-mist-300">
+                Lead time ({rule.leadMinutes} min)
+                <input
+                  type="range"
+                  min={1}
+                  max={15}
+                  step={1}
+                  value={rule.leadMinutes}
+                  onChange={(e) =>
+                    setParams(rule.id, { leadMinutes: Number(e.target.value) })
+                  }
+                  className="mt-1 w-full accent-ember-400"
+                />
+              </label>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export function SettingsPage() {
   const sources = useIptvStore((s) => s.sources)
   const prefs = useIptvStore((s) => s.prefs)
@@ -163,6 +237,8 @@ export function SettingsPage() {
           </p>
         )}
       </section>
+
+      <AutomationRulesSection />
 
       <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
         <h2 className="font-display text-lg font-semibold">Playback & UI</h2>

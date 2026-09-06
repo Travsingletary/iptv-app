@@ -137,7 +137,7 @@ try {
   // Assistant tools
   await page.getByRole('button', { name: /^Assistant$/i }).click()
   await page.waitForTimeout(400)
-  const input = page.getByPlaceholder(/Ask for channels/i)
+  const input = page.getByPlaceholder(/Ask, remind, mute|Ask for channels/i)
   await input.fill('Play Pulse News 24')
   await page.keyboard.press('Enter')
   await page.waitForTimeout(1800)
@@ -170,7 +170,7 @@ try {
   await page.route('**/api/assistant', (route) => route.abort())
   await page.getByRole('button', { name: /^Assistant$/i }).click().catch(() => undefined)
   await page.waitForTimeout(300)
-  const input2 = page.getByPlaceholder(/Ask for channels/i)
+  const input2 = page.getByPlaceholder(/Ask, remind, mute|Ask for channels/i)
   await input2.fill('Play Aether One')
   await page.keyboard.press('Enter')
   await page.waitForTimeout(1500)

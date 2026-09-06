@@ -116,6 +116,8 @@ const server = http.createServer(async (req, res) => {
         modelConfigured: Boolean(process.env.AI_PROVIDER || process.env.OPENAI_API_KEY),
         apiKey: process.env.OPENAI_API_KEY,
         provider: process.env.AI_PROVIDER,
+        baseUrl: process.env.OPENAI_BASE_URL,
+        confirmed: Boolean(parsed.confirmed),
       })
       sendJson(res, 200, result)
       return
