@@ -21,3 +21,5 @@
 
 - Phase 5 verified: Xtream login + demo fallback, catchup/timeshift stub UX, 2/4-up multi-view, TV spatial focus (`e2e/verify-phase5.mjs`).
 
+- Phase 6 verified: Supabase RLS notes/migration, CI e2e suite (`test:e2e`), README phase map + env docs (`e2e/verify-phase6.mjs`).
+

@@ -1,19 +1,35 @@
 # Aether — Premium IPTV Player
 
-A cable / Netflix-style IPTV experience for the web: live TV, electronic program guide, on-demand rails, favorites, M3U import, and smooth motion throughout.
+A cable / Netflix-style IPTV experience for the web: live TV, electronic program guide, on-demand rails, favorites, M3U / Xtream import, multi-view, and an assistant agent.
+
+## Phase map
+
+| Phase | Status | Highlights | Verify |
+| --- | --- | --- | --- |
+| 1 | Done | Assistant panel, telemetry, For You Now, `/api/assistant` | `npm test` |
+| 2 | Done | Voice intents, reminders, stream fallback chips | `npm run verify:phase2` |
+| 3 | Done | Agent loop, automation rules, provider adapter, reminder sync | `npm run verify:phase3` |
+| 4 | Done | Real LLM tools loop (API key), household profiles, NL EPG, reminder UX | `npm run verify:phase4` |
+| 5 | Done | Xtream login, catch-up stub, 2/4-up multi-view, TV focus | `npm run verify:phase5` |
+| 6 | Done | Supabase RLS notes, CI e2e suite, README/env docs | `npm run verify:phase6` / `npm run test:e2e` |
+
+Verify-before-building is enforced in `AGENTS.md` and `documents/ai_memory/ai_memory.md`.
 
 ## Features
 
 - **Live TV** with HLS.js playback, channel groups, search, and zap controls
 - **TV Guide (EPG)** timeline with now-line, jump-to-now, and tune-from-guide
 - **On Demand** poster grid + detail sheet for movies/series in the playlist
+- **Multi-view** 2-up / 4-up live mosaic with per-slot focus
 - **Home** Netflix-style hero + content rails
 - **Favorites** and continue-watching
 - **M3U import** via URL or paste (Settings)
-- **Demo pack** with public HLS samples so you can explore without a subscription
-- **Assistant agent (Phase 3)** multi-step tool plans, confirm for destructive actions, conversation memory
-- **Automation rules** buffering fallback suggestions, favorite start reminders, auto-try alternate on stream error
-- Keyboard: `Space` play/pause · `↑/↓` zap · `M` mute · `G` guide · `H` home
+- **Xtream Codes** server/user/pass login with graceful demo fallback
+- **Catch-up / timeshift** controls when a channel advertises archive (demo stub + docs)
+- **Household profiles** with separate favorites bias and assistant memory
+- **Assistant agent** multi-step tools, NL EPG (“sports in next 2 hours”), confirm gates
+- **Automation rules** buffering fallback, favorite lead reminders, auto-alternate on error
+- Keyboard: `Space` play/pause · `↑/↓` zap · `M` mute · `G` guide · `H` home · `V` multi-view
 
 ## Quick start
 
@@ -22,7 +38,7 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL, choose **Enter with demo pack**, then browse Home / Live / Guide / On Demand.
+Open the printed local URL, choose **Enter with demo pack**, then browse Home / Live / Guide / On Demand / Multi-view.
 
 ## Scripts
 
@@ -32,41 +48,45 @@ Open the printed local URL, choose **Enter with demo pack**, then browse Home / 
 | `npm run build` | Production build |
 | `npm run preview` | Preview build (also mounts `/api/assistant`) |
 | `npm run start:api` | Companion Node server: serves `dist/` + `/api/assistant` |
-| `npm test` | Unit tests (assistant agent / automation / M3U / …) |
+| `npm test` | Unit tests |
+| `npm run verify:phase2` … `verify:phase6` | Per-phase Playwright runtime checks |
+| `npm run test:e2e` | Run phases 2–6 e2e against `AETHER_URL` |
+
+CI tip: start `npm run dev` (or `npm run start:api` after build), then `AETHER_URL=http://127.0.0.1:5173 npm run test:e2e`.
+
+## Environment
+
+Copy `.env.example` → `.env.local`:
+
+| Variable | Role |
+| --- | --- |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Optional telemetry + reminder sync |
+| `OPENAI_API_KEY` | Enables real multi-round tools loop on the server |
+| `AI_PROVIDER` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | Optional OpenAI-compatible gateway |
+| `VITE_OPENAI_API_KEY` etc. | Client-only fallback when `/api/assistant` is absent |
+| `PORT` | Companion server port (`npm run start:api`, default `4173`) |
+
+Without AI keys the deterministic mock agent still runs. Without Supabase, events and reminders stay in `localStorage`.
 
 ## Assistant API
 
-Phase 3 keeps the assistant provider-agnostic with a real agent loop:
+1. **Vite middleware** — `npm run dev` / `npm run preview` expose `POST /api/assistant`.
+2. **Companion server** — `npm run build` then `npm run start:api`.
+3. **Client fallback** — pure static hosting runs `assistantCore` / `agentLoop` in-browser.
+4. **Mock by default** — allowlisted multi-step tools without keys.
+5. **Real tools loop** — with `OPENAI_API_KEY`, server runs model → tool_calls → local allowlist → model rounds.
 
-1. **Vite middleware** — `npm run dev` and `npm run preview` expose `POST /api/assistant`.
-2. **Companion server** — after `npm run build`, run `npm run start:api` for a static+API host without Vite.
-3. **Client fallback** — if `/api/assistant` is unavailable (pure static hosting), the UI runs `assistantCore` / `agentLoop` in-browser.
-4. **Mock by default** — without API keys, the deterministic multi-step agent still executes allowlisted tools.
-5. **Optional provider** — set `AI_PROVIDER` + `OPENAI_API_KEY` (and optional `OPENAI_BASE_URL` / `OPENAI_MODEL`) for an OpenAI-compatible chat+tools adapter. Client `VITE_*` equivalents exist for pure local fallback.
+Body: `{ message, context, confirmed? }`. Confirm-risk tools stay pending until `confirmed: true`.
 
-Body: `{ message, context, confirmed? }`. Confirm-risk tools (e.g. clear reminders) stay pending until `confirmed: true`.
+## Supabase
 
-## Automation rules
+Apply migrations in order:
 
-Settings → **Automation rules** (persisted in `localStorage` as `aether_automation_rules_v1`):
+1. `supabase/migrations/001_client_events.sql`
+2. `supabase/migrations/002_program_reminders.sql`
+3. `supabase/migrations/003_production_rls_notes.sql`
 
-- Suggest fallback when buffering exceeds N seconds
-- Remind before favorite-channel programs start
-- Auto-try an alternate in the same group on live stream error
-
-## Telemetry & reminders (Supabase)
-
-Copy `.env.example` → `.env.local` and set:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Apply migrations:
-
-- `supabase/migrations/001_client_events.sql`
-- `supabase/migrations/002_program_reminders.sql`
-
-When credentials are missing, events and reminders stay in `localStorage` and never block playback.
+See `supabase/RLS.md` for production hardening (Auth-scoped policies; drop open anon policies when ready).
 
 ## Stack
 
@@ -74,6 +94,7 @@ React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js
 
 ## Notes
 
-- Some remote M3U URLs are blocked by browser CORS; paste import still works.
+- Some remote M3U / Xtream URLs are blocked by browser CORS; paste import still works.
 - Demo streams are public HLS test assets — not a commercial IPTV service.
+- Demo catch-up is a documented stub (`aether_catchup=` query) because public samples have no archive.
 - Bring your own legal playlist / provider credentials.
