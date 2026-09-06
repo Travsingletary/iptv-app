@@ -8,7 +8,7 @@ export function AutomationToasts() {
   const clearAutomationToast = useIptvStore((s) => s.clearAutomationToast)
 
   return (
-    <div className="pointer-events-none absolute bottom-36 right-5 z-50 flex w-[min(22rem,calc(100%-2.5rem))] flex-col gap-2">
+    <div className="pointer-events-none absolute bottom-24 left-1/2 z-[60] flex w-[min(24rem,calc(100%-2.5rem))] -translate-x-1/2 flex-col gap-2 sm:left-auto sm:right-5 sm:translate-x-0">
       <AnimatePresence>
         {toasts.map((toast) => (
           <motion.div
