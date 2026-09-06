@@ -101,19 +101,15 @@ try {
     // Use the VideoPlayer error pathway by breaking the media element.
   })
 
-  // Prefer calling the store through a small eval hook if available after HMR.
-  const fallbackOk = await page.evaluate(async () => {
-    // Dynamically import the store module in browser
-    try {
-      const mod = await import('/src/store/useIptvStore.ts')
-      const store = mod.useIptvStore
-      store.getState().playChannel('live_aether_one')
-      store.getState().setStreamError('Stream error. Try another channel.')
-      const suggestions = store.getState().player.fallbackSuggestions
-      return { count: suggestions.length, names: suggestions.map((s) => s.channelName) }
-    } catch (err) {
-      return { error: String(err) }
-    }
+  // Prefer the React-bound store bridge (window.__AETHER_STORE__) to avoid Vite dual-module drift.
+  const fallbackOk = await page.evaluate(() => {
+    const store = window.__AETHER_STORE__
+    if (!store) return { error: 'missing __AETHER_STORE__' }
+    store.getState().playChannel('live_aether_one')
+    store.getState().setStreamError('Stream error. Try another channel.')
+    store.getState().setPlayer({ overlayVisible: true })
+    const suggestions = store.getState().player.fallbackSuggestions
+    return { count: suggestions.length, names: suggestions.map((s) => s.channelName) }
   })
   note(`fallback suggestions: ${JSON.stringify(fallbackOk)}`)
   if (!fallbackOk.count || fallbackOk.count < 1) {
@@ -121,33 +117,20 @@ try {
   }
 
   await page.waitForTimeout(500)
-  // Ensure overlay visible
-  await page.evaluate(() => {
-    return import('/src/store/useIptvStore.ts').then((mod) => {
-      mod.useIptvStore.getState().setPlayer({ overlayVisible: true })
-    })
-  })
-  await page.waitForTimeout(400)
+  await page.mouse.move(400, 220)
+  await page.waitForTimeout(300)
   const liveText = await page.locator('body').innerText()
   note(`Try instead UI: ${/Try instead/i.test(liveText)}`)
   if (!/Try instead/i.test(liveText)) throw new Error('Try instead UI missing')
   await page.screenshot({ path: path.join(outDir, 'phase2_stream_fallback_suggestions.png') })
 
   // One-tap switch
-  const tryBtn = page.getByRole('button').filter({ hasText: /Metro Local|Noir Cinema|Pulse News|Horizon|Wave|Lumen|Arena/i }).first()
-  // Click first fallback chip containing reason text pattern near Try instead
   const chip = page.locator('button', { hasText: /Same group|Same library|Available title|Next available/i }).first()
   if (await chip.count()) {
-    const before = await page.evaluate(async () => {
-      const mod = await import('/src/store/useIptvStore.ts')
-      return mod.useIptvStore.getState().player.channelId
-    })
+    const before = await page.evaluate(() => window.__AETHER_STORE__?.getState().player.channelId)
     await chip.click()
     await page.waitForTimeout(800)
-    const after = await page.evaluate(async () => {
-      const mod = await import('/src/store/useIptvStore.ts')
-      return mod.useIptvStore.getState().player.channelId
-    })
+    const after = await page.evaluate(() => window.__AETHER_STORE__?.getState().player.channelId)
     note(`fallback switch ${before} -> ${after}`)
     if (before === after) throw new Error('Fallback chip did not switch channel')
   } else {

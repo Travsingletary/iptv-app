@@ -53,7 +53,7 @@ try {
   await page.getByRole('button', { name: /^Assistant$/i }).click()
   await page.waitForTimeout(400)
   const aside = page.locator('aside').last()
-  note(`phase3 badge: ${/Phase 3/i.test(await aside.innerText())}`)
+  note(`phase3 badge: ${/Phase [34]/i.test(await aside.innerText())}`)
 
   const input = page.getByPlaceholder(/Ask, remind, mute|Ask for channels/i)
   await input.fill('Mute and remind me when Match Center starts')
@@ -107,26 +107,18 @@ try {
 
   await page.screenshot({ path: path.join(outDir, 'phase3_automation_rules_settings.png') })
 
-  // Trigger stream-error automation via store (split evaluates to avoid GC races)
+  // Trigger stream-error automation via React-bound store bridge
   await page.getByRole('button', { name: 'Live TV' }).click()
   await page.waitForTimeout(800)
-  await page.evaluate(async () => {
-    const mod = await import('/src/store/useIptvStore.ts')
-    const store = mod.useIptvStore
+  await page.evaluate(() => {
+    const store = window.__AETHER_STORE__
     store.getState().playChannel('live_aether_one')
+    store.getState().setStreamError('Stream error. Try another channel.')
+    store.getState().tickAutomation(Date.now())
   })
   await page.waitForTimeout(400)
-  await page.evaluate(async () => {
-    const mod = await import('/src/store/useIptvStore.ts')
-    mod.useIptvStore.getState().setStreamError('Stream error. Try another channel.')
-  })
-  await page.waitForTimeout(200)
-  const autoResult = await page.evaluate(async () => {
-    const mod = await import('/src/store/useIptvStore.ts')
-    const store = mod.useIptvStore
-    // Snapshot toasts before auto-switch clears channel error episode
-    store.getState().tickAutomation(Date.now())
-    const state = store.getState()
+  const autoResult = await page.evaluate(() => {
+    const state = window.__AETHER_STORE__.getState()
     return {
       toasts: state.automationToasts.map((t) => ({ kind: t.kind, message: t.message })),
       channelId: state.player.channelId,
@@ -143,12 +135,20 @@ try {
   note(`automation toast visible: ${/Automation|Stream error/i.test(bodyText)}`)
   await page.screenshot({ path: path.join(outDir, 'phase3_automation_stream_error_toast.png') })
 
-  // Conversation memory key written
+  // Conversation memory key written (profile-scoped since Phase 4)
   const memoryOk = await page.evaluate(() => {
-    const raw = localStorage.getItem('aether_assistant_memory_v1')
-    if (!raw) return false
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) && parsed.length > 0
+    const keys = Object.keys(localStorage).filter((k) =>
+      k.startsWith('aether_assistant_memory'),
+    )
+    for (const key of keys) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '[]')
+        if (Array.isArray(parsed) && parsed.length > 0) return true
+      } catch {
+        // continue
+      }
+    }
+    return false
   })
   note(`conversation memory persisted: ${memoryOk}`)
   if (!memoryOk) throw new Error('Expected assistant memory in localStorage')
