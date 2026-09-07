@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { resolveArtifactDir, safeWriteFile } from './artifactDir.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -22,8 +23,7 @@ function resolvePlaywright() {
 
 const { chromium } = resolvePlaywright()
 const BASE = process.env.AETHER_URL || 'http://127.0.0.1:5173'
-const outDir = '/opt/cursor/artifacts'
-fs.mkdirSync(outDir, { recursive: true })
+const outDir = resolveArtifactDir()
 const log = []
 function note(msg) {
   console.log(msg)
@@ -65,7 +65,7 @@ try {
   note(`xtream status: ${statusText}`)
   note(`xtream demo fallback: ${/demo pack/i.test(statusText)}`)
   if (!/demo pack/i.test(statusText)) throw new Error('Expected demo fallback message')
-  await page.screenshot({ path: path.join(outDir, 'phase5_xtream_fallback.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase5_xtream_fallback.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Catchup on Arena Sports (catchup:true) — click UI (avoid Vite dual-module store imports)
   await page.getByRole('button', { name: 'Live TV' }).click()
@@ -92,7 +92,7 @@ try {
   note(`catchup status: ${await catchupStatus.count()}`)
   if (!(await catchupStatus.count())) throw new Error('Catchup status missing')
   note(`catchup text: ${await catchupStatus.innerText()}`)
-  await page.screenshot({ path: path.join(outDir, 'phase5_catchup_stub.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase5_catchup_stub.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Multi-view
   await page.getByRole('button', { name: 'Multi-view' }).first().click()
@@ -107,7 +107,7 @@ try {
   if (slotCount < 4) throw new Error(`Expected 4 mosaic slots, got ${slotCount}`)
   const focusBtn = page.getByRole('button', { name: /Focus slot/i }).first()
   if (await focusBtn.count()) await focusBtn.click()
-  await page.screenshot({ path: path.join(outDir, 'phase5_multiview_4up.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase5_multiview_4up.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // TV focus: tab to a nav button and check focus-visible styling path exists
   await page.getByRole('button', { name: 'Home' }).focus()
@@ -117,7 +117,7 @@ try {
   await page.waitForTimeout(200)
   const afterArrow = await page.evaluate(() => document.activeElement?.textContent?.trim() || '')
   note(`tv focus after arrow: ${afterArrow}`)
-  await page.screenshot({ path: path.join(outDir, 'phase5_tv_focus.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase5_tv_focus.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   note('PHASE5_VERIFY_OK')
 } catch (err) {
@@ -127,5 +127,5 @@ try {
 } finally {
   await context.close()
   await browser.close()
-  fs.writeFileSync(path.join(outDir, 'phase5_verification.log'), log.join('\n') + '\n')
+  safeWriteFile(path.join(outDir, 'phase5_verification.log'), log.join('\n') + '\n')
 }

@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { resolveArtifactDir, safeWriteFile } from './artifactDir.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -22,8 +23,7 @@ function resolvePlaywright() {
 
 const { chromium } = resolvePlaywright()
 const BASE = process.env.AETHER_URL || 'http://127.0.0.1:5173'
-const outDir = '/opt/cursor/artifacts'
-fs.mkdirSync(outDir, { recursive: true })
+const outDir = resolveArtifactDir()
 const log = []
 function note(msg) {
   console.log(msg)
@@ -79,7 +79,7 @@ try {
   text = await aside.innerText()
   note(`confirmed clear: ${/dismissed|clear_reminders|All active reminders/i.test(text)}`)
 
-  await page.screenshot({ path: path.join(outDir, 'phase3_agent_multistep_confirm.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase3_agent_multistep_confirm.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Automation rules in Settings
   await page.getByRole('button', { name: 'Close assistant' }).click().catch(() => undefined)
@@ -105,7 +105,7 @@ try {
     await toggle.click()
   }
 
-  await page.screenshot({ path: path.join(outDir, 'phase3_automation_rules_settings.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase3_automation_rules_settings.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Trigger stream-error automation via React-bound store bridge
   await page.getByRole('button', { name: 'Live TV' }).click()
@@ -133,7 +133,7 @@ try {
   await page.waitForTimeout(700)
   const bodyText = await page.locator('body').innerText()
   note(`automation toast visible: ${/Automation|Stream error/i.test(bodyText)}`)
-  await page.screenshot({ path: path.join(outDir, 'phase3_automation_stream_error_toast.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase3_automation_stream_error_toast.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Conversation memory key written (profile-scoped since Phase 4)
   const memoryOk = await page.evaluate(() => {
@@ -161,5 +161,5 @@ try {
 } finally {
   await context.close()
   await browser.close()
-  fs.writeFileSync(path.join(outDir, 'phase3_verification.log'), log.join('\n') + '\n')
+  safeWriteFile(path.join(outDir, 'phase3_verification.log'), log.join('\n') + '\n')
 }

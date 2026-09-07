@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { resolveArtifactDir, safeWriteFile } from './artifactDir.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -22,8 +23,7 @@ function resolvePlaywright() {
 
 const { chromium } = resolvePlaywright()
 const BASE = process.env.AETHER_URL || 'http://127.0.0.1:5173'
-const outDir = '/opt/cursor/artifacts'
-fs.mkdirSync(outDir, { recursive: true })
+const outDir = resolveArtifactDir()
 const log = []
 function note(msg) {
   console.log(msg)
@@ -65,7 +65,7 @@ try {
 
   await page.getByLabel('Active profile interest tags').fill('sports, news')
   await page.waitForTimeout(200)
-  await page.screenshot({ path: path.join(outDir, 'phase4_profiles_settings.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase4_profiles_settings.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // NL EPG in assistant
   await page.getByRole('button', { name: /^Assistant$/i }).click()
@@ -90,7 +90,7 @@ try {
   if (!(await structured.count())) throw new Error('Expected structured EPG results')
   if (!/search_epg/i.test(asideText)) throw new Error('Expected search_epg tool')
 
-  await page.screenshot({ path: path.join(outDir, 'phase4_nl_epg_structured.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase4_nl_epg_structured.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Profile name in assistant chrome
   note(`profile in badge: ${/Sports Fan/i.test(asideText)}`)
@@ -103,5 +103,5 @@ try {
 } finally {
   await context.close()
   await browser.close()
-  fs.writeFileSync(path.join(outDir, 'phase4_verification.log'), log.join('\n') + '\n')
+  safeWriteFile(path.join(outDir, 'phase4_verification.log'), log.join('\n') + '\n')
 }

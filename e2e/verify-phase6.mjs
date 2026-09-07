@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { resolveArtifactDir, safeWriteFile } from './artifactDir.mjs'
 import { fileURLToPath } from 'node:url'
 
 function resolvePlaywright() {
@@ -23,8 +24,7 @@ function resolvePlaywright() {
 
 const { chromium } = resolvePlaywright()
 const BASE = process.env.AETHER_URL || 'http://127.0.0.1:5173'
-const outDir = '/opt/cursor/artifacts'
-fs.mkdirSync(outDir, { recursive: true })
+const outDir = resolveArtifactDir()
 const log = []
 function note(msg) {
   console.log(msg)
@@ -95,7 +95,7 @@ try {
   const aside = page.locator('aside').last()
   note(`assistant finish: ${/Mock AI|Live AI|profiles|NL EPG/i.test(await aside.innerText())}`)
 
-  await page.screenshot({ path: path.join(outDir, 'phase6_ship_ready_shell.png') })
+  await page.screenshot({ path: path.join(outDir, 'phase6_ship_ready_shell.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
   note('PHASE6_VERIFY_OK')
 } catch (err) {
   note(`PHASE6_VERIFY_FAIL: ${err instanceof Error ? err.message : String(err)}`)
@@ -104,5 +104,5 @@ try {
 } finally {
   await context.close()
   await browser.close()
-  fs.writeFileSync(path.join(outDir, 'phase6_verification.log'), log.join('\n') + '\n')
+  safeWriteFile(path.join(outDir, 'phase6_verification.log'), log.join('\n') + '\n')
 }

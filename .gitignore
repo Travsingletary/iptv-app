@@ -24,3 +24,4 @@ server/.assistant-core.bundle.mjs
 *.sln
 *.sw?
 .playwright-mcp/
+.artifacts/
