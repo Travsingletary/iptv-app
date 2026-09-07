@@ -95,7 +95,7 @@ export function MultiViewPage() {
                   <VideoPlayer
                     channelIdOverride={channel.id}
                     silent
-                    mutedOverride={player.channelId !== channel.id}
+                    mutedOverride={player.channelId !== channel.id || player.muted}
                   />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-950/90 to-transparent p-3">
                     <p className="font-display text-sm font-semibold text-sand-50">

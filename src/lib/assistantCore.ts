@@ -74,6 +74,8 @@ export interface AssistantApiResult {
   /** When a real provider answered. */
   providerModel?: string
   providerRounds?: number
+  /** Mock = deterministic agent; Live = OpenAI-compatible loop. */
+  aiMode?: 'mock' | 'live'
 }
 
 interface ResolveAssistantOptions {
@@ -98,6 +100,7 @@ function buildMockReply(
     toolCalls: result.toolCalls,
     steps: result.steps,
     needsConfirmation: result.needsConfirmation,
+    aiMode: 'mock',
   }
 }
 
@@ -131,6 +134,7 @@ async function tryProviderReply(
     needsConfirmation: loop.needsConfirmation,
     providerModel: loop.providerModel,
     providerRounds: loop.rounds,
+    aiMode: 'live',
   }
 }
 

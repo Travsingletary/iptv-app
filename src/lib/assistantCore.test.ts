@@ -140,4 +140,27 @@ describe('resolveAssistantReply', () => {
     expect(search?.data?.epgFilters?.category).toBe('Sports')
     expect(search?.data?.programs?.[0]?.start).toBeTypeOf('number')
   })
+
+  it('returns polished mock replies for greetings and help', async () => {
+    const hi = await resolveAssistantReply('Hello', {
+      view: 'live',
+      currentChannelId: 'live_aether_one',
+      favorites: [],
+      recentIds: [],
+      channels: DEMO_CHANNELS,
+      epg: DEMO_EPG,
+    })
+    expect(hi.aiMode).toBe('mock')
+    expect(hi.response).toMatch(/Hello|Aether/i)
+
+    const help = await resolveAssistantReply('help', {
+      view: 'home',
+      currentChannelId: null,
+      favorites: [],
+      recentIds: [],
+      channels: DEMO_CHANNELS,
+      epg: DEMO_EPG,
+    })
+    expect(help.response).toMatch(/Recommend|sports in next/i)
+  })
 })

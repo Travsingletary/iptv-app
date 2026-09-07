@@ -8,8 +8,24 @@ interface AssistantRequestBody {
   confirmed?: boolean
 }
 
+function aiStatusPayload() {
+  const configured = Boolean(process.env.OPENAI_API_KEY)
+  return {
+    ok: true,
+    aiMode: configured ? 'live' : 'mock',
+    configured,
+  }
+}
+
 function attachAssistantMiddleware(middlewares: Connect.Server) {
   middlewares.use('/api/assistant', async (req, res) => {
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      res.statusCode = 200
+      res.setHeader('content-type', 'application/json')
+      res.end(JSON.stringify(aiStatusPayload()))
+      return
+    }
+
     if (req.method !== 'POST') {
       res.statusCode = 405
       res.setHeader('content-type', 'application/json')

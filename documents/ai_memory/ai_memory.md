@@ -23,3 +23,11 @@
 
 - Phase 6 verified: Supabase RLS notes/migration, CI e2e suite (`test:e2e`), README phase map + env docs (`e2e/verify-phase6.mjs`).
 
+- Finish pass: Supabase Auth Settings UI (demo-safe), AI Mock/Live indicator, Xtream/catch-up harden, multi-view single audible pane, expanded e2e (`e2e/verify-finish.mjs`).
+
+### Still needs user credentials (not finishable in-repo)
+
+- Live LLM: `OPENAI_API_KEY` (optional `OPENAI_BASE_URL` / `OPENAI_MODEL`)
+- Real Xtream ingest + archive catch-up: panel URL + username + password with `tv_archive`
+- Production RLS: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` + Auth users, then drop anon policies
+

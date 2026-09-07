@@ -92,17 +92,28 @@ export function directionFromKey(key: string): FocusDirection | null {
 export function handleTvDirectionalKey(
   event: KeyboardEvent,
   root: ParentNode = document,
+  options: { seedIfUnfocused?: boolean } = {},
 ): boolean {
   const direction = directionFromKey(event.key)
   if (!direction) return false
   const tag = (event.target as HTMLElement | null)?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false
 
-  const active = document.activeElement
-  if (!(active instanceof HTMLElement)) return false
-
   const candidates = collectFocusables(root)
-  const next = findSpatialNeighbor(active, direction, candidates)
+  if (!candidates.length) return false
+
+  const active = document.activeElement
+  const activeIsFocusable =
+    active instanceof HTMLElement && isFocusable(active) && candidates.includes(active)
+
+  if (!activeIsFocusable) {
+    if (!options.seedIfUnfocused) return false
+    event.preventDefault()
+    candidates[0].focus()
+    return true
+  }
+
+  const next = findSpatialNeighbor(active as HTMLElement, direction, candidates)
   if (!next) return false
   event.preventDefault()
   next.focus()

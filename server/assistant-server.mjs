@@ -100,6 +100,15 @@ const { resolveAssistantReply } = await loadAssistant()
 const server = http.createServer(async (req, res) => {
   try {
     if (req.url?.startsWith('/api/assistant')) {
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        const configured = Boolean(process.env.OPENAI_API_KEY)
+        sendJson(res, 200, {
+          ok: true,
+          aiMode: configured ? 'live' : 'mock',
+          configured,
+        })
+        return
+      }
       if (req.method !== 'POST') {
         sendJson(res, 405, { error: 'Method not allowed' })
         return

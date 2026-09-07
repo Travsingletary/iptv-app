@@ -383,6 +383,7 @@ export function executeAgentPlan(
   plan: AgentPlan,
   context: AssistantContextSnapshot,
   options: AgentRunOptions = {},
+  message = '',
 ): AgentRunResult {
   const steps = plan.steps.map((step) => executeStep(step, context, options))
   const needsConfirmation = steps.some((s) => s.status === 'pending_confirm')
@@ -445,11 +446,33 @@ export function executeAgentPlan(
   } else {
     const activeName =
       context.channels.find((ch) => ch.id === context.currentChannelId)?.name ?? 'nothing yet'
-    response = [
-      `I can run multi-step plans: mute + remind, recommend + play, clear reminders (with confirm).`,
-      `You are on ${context.view} watching ${activeName}.${memoryHint}`,
-      `Try: "Mute and remind me when Match Center starts" or "Clear all reminders".`,
-    ].join(' ')
+    const trimmed = message.trim()
+    const lower = trimmed.toLowerCase()
+    if (/^(hi|hello|hey|good (morning|afternoon|evening))\b/i.test(trimmed)) {
+      response = [
+        `Hello — I'm Aether.`,
+        `You're on ${context.view} watching ${activeName}.`,
+        `Ask me to recommend, search the guide ("sports in next 2 hours"), mute, play a channel, or set a reminder.`,
+      ].join(' ')
+    } else if (/\b(help|what can you|commands?|how do i)\b/i.test(lower)) {
+      response = [
+        `Commands I understand without a live model:`,
+        `"Recommend something" · "sports in next 2 hours" · "Play Arena Sports" · "Mute" / "Unmute" ·`,
+        `"Remind me when Match Center starts" · "Clear all reminders" (asks confirm) · "Suggest a fallback".`,
+      ].join(' ')
+    } else if (/\b(thanks|thank you|thx)\b/i.test(lower)) {
+      response = `You're welcome. Say if you want another recommendation or guide search.`
+    } else if (
+      /\b(what('?s| is) (playing|on)|current channel|who am i watching|now playing)\b/i.test(lower)
+    ) {
+      response = `You're watching ${activeName} on the ${context.view} view.${memoryHint}`
+    } else {
+      response = [
+        `I can run multi-step plans: mute + remind, recommend + play, clear reminders (with confirm).`,
+        `You are on ${context.view} watching ${activeName}.${memoryHint}`,
+        `Try: "Mute and remind me when Match Center starts", "sports in next 2 hours", or "help".`,
+      ].join(' ')
+    }
   }
 
   return { response, steps, toolCalls, needsConfirmation }
@@ -462,7 +485,7 @@ export function runAgentTurn(
   options: AgentRunOptions = {},
 ): AgentRunResult {
   const plan = planAgentSteps(message, context)
-  return executeAgentPlan(plan, context, options)
+  return executeAgentPlan(plan, context, options, message)
 }
 
 export function isToolAllowed(tool: string): boolean {

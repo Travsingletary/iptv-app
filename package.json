@@ -16,6 +16,7 @@
     "verify:phase4": "node e2e/verify-phase4.mjs",
     "verify:phase5": "node e2e/verify-phase5.mjs",
     "verify:phase6": "node e2e/verify-phase6.mjs",
+    "verify:finish": "node e2e/verify-finish.mjs",
     "test:e2e": "node e2e/verify-all.mjs",
     "check:demo-streams": "node e2e/check-demo-streams.mjs"
   },

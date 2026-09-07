@@ -17,6 +17,10 @@ export interface Channel {
   year?: number
   rating?: string
   description?: string
+  /** Provider stream id (Xtream) for timeshift URLs. */
+  streamId?: string
+  /** Hours of archive when panel advertises tv_archive_duration. */
+  archiveDurationHours?: number
 }
 
 export interface EpgProgram {
@@ -50,8 +54,10 @@ export interface CatchupState {
   active: boolean
   minutesAgo: number
   label: string
-  /** Effective URL being played (may be stub). */
+  /** Effective URL being played (may be stub or real timeshift). */
   url: string
+  /** How catch-up was resolved. */
+  mode?: 'xtream' | 'demo_stub' | 'unsupported'
 }
 
 export interface PlayerState {

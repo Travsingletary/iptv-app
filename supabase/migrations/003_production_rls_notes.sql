@@ -68,5 +68,13 @@ create policy "auth can manage own program_reminders"
 --   drop policy if exists "anon can upsert program_reminders" on public.program_reminders;
 --   -- then rely solely on authenticated policies above.
 --
--- Until Auth is wired, leave the anon policies from 001/002 in place so the
--- demo app can sync without login. Treat that as non-production.
+-- Until Auth is wired in the app (Settings → Account via supabaseAuth.ts),
+-- leave the anon policies from 001/002 in place so the demo app can sync
+-- without login. Treat that as non-production.
+--
+-- APP WIRING (complete in code):
+--   src/lib/supabaseClient.ts  — shared client
+--   src/lib/supabaseAuth.ts    — sign-in / sign-out / session
+--   Settings Account section   — UI when VITE_SUPABASE_* present
+--   eventLogger + reminderSync — attach user_id when signed in
+-- After users can sign in, drop anon policies above for production.

@@ -1,7 +1,195 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useIptvStore } from '../store/useIptvStore'
 import { getActiveProfile } from '../lib/profiles'
+import {
+  getAuthSnapshot,
+  onAuthChange,
+  signInWithPassword,
+  signOut,
+  signUpWithPassword,
+  type AuthSnapshot,
+} from '../lib/supabaseAuth'
+import { probeAiModeStatus, type AiModeStatus } from '../lib/aiMode'
 
+
+function AuthSection() {
+  const [auth, setAuth] = useState<AuthSnapshot | null>(null)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    void getAuthSnapshot().then(setAuth)
+    return onAuthChange(setAuth)
+  }, [])
+
+  if (!auth || auth.mode === 'disabled') {
+    return (
+      <section className="glass-panel space-y-3 rounded-3xl p-5 md:p-6">
+        <div>
+          <h2 className="font-display text-lg font-semibold">Account</h2>
+          <p className="mt-1 text-sm text-mist-300">
+            Optional Supabase Auth for production RLS. Without credentials the app stays fully
+            usable in demo mode.
+          </p>
+        </div>
+        <p
+          data-testid="auth-demo-state"
+          className="rounded-xl border border-white/10 bg-ink-850/80 px-3 py-2 text-sm text-mist-300"
+        >
+          Auth disabled — set <span className="font-mono text-sand-100">VITE_SUPABASE_URL</span> and{' '}
+          <span className="font-mono text-sand-100">VITE_SUPABASE_ANON_KEY</span> to enable sign-in.
+        </p>
+      </section>
+    )
+  }
+
+  const onSignIn = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setMessage(null)
+    const result = await signInWithPassword(email, password)
+    setMessage(result.ok ? 'Signed in.' : result.error)
+    setBusy(false)
+  }
+
+  const onSignUp = async () => {
+    setBusy(true)
+    setMessage(null)
+    const result = await signUpWithPassword(email, password)
+    setMessage(
+      result.ok
+        ? 'Sign-up submitted. Check email confirmation if your project requires it.'
+        : result.error,
+    )
+    setBusy(false)
+  }
+
+  const onSignOut = async () => {
+    setBusy(true)
+    setMessage(null)
+    const result = await signOut()
+    setMessage(result.ok ? 'Signed out.' : result.error)
+    setBusy(false)
+  }
+
+  return (
+    <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold">Account</h2>
+        <p className="mt-1 text-sm text-mist-300">
+          Sign in so reminder sync and telemetry can scope rows by{' '}
+          <span className="font-mono text-xs">auth.uid()</span> (see{' '}
+          <span className="font-mono text-xs">supabase/RLS.md</span>).
+        </p>
+      </div>
+      {auth.mode === 'signed_in' ? (
+        <div className="space-y-3">
+          <p data-testid="auth-signed-in" className="text-sm text-sand-100">
+            Signed in as <span className="font-medium">{auth.email ?? auth.userId}</span>
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void onSignOut()}
+            className="rounded-full border border-white/15 px-4 py-2 text-sm hover:border-ember-400/50 disabled:opacity-40"
+            data-tv-focus
+          >
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={onSignIn} className="space-y-3">
+          <label className="block text-sm">
+            Email
+            <input
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+              data-tv-focus
+              data-testid="auth-email"
+            />
+          </label>
+          <label className="block text-sm">
+            Password
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+              data-tv-focus
+              data-testid="auth-password"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={busy || !email.trim() || !password}
+              className="rounded-full bg-sand-50 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-40"
+              data-tv-focus
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              disabled={busy || !email.trim() || !password}
+              onClick={() => void onSignUp()}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+              data-tv-focus
+            >
+              Sign up
+            </button>
+          </div>
+        </form>
+      )}
+      {message && (
+        <p className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100">
+          {message}
+        </p>
+      )}
+    </section>
+  )
+}
+
+function AiModeSection() {
+  const [status, setStatus] = useState<AiModeStatus | null>(null)
+
+  useEffect(() => {
+    void probeAiModeStatus().then(setStatus)
+  }, [])
+
+  return (
+    <section className="glass-panel space-y-3 rounded-3xl p-5 md:p-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold">Assistant AI</h2>
+        <p className="mt-1 text-sm text-mist-300">
+          Mock AI is fully featured without keys. Live AI needs{' '}
+          <span className="font-mono text-xs">OPENAI_API_KEY</span> on the server (or{' '}
+          <span className="font-mono text-xs">VITE_OPENAI_API_KEY</span> for static hosting).
+        </p>
+      </div>
+      <div
+        data-testid="ai-mode-indicator"
+        className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-ink-850/80 px-4 py-3"
+      >
+        <span
+          className={`rounded-full px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] ${
+            status?.mode === 'live'
+              ? 'border border-ember-400/40 bg-ember-500/15 text-ember-300'
+              : 'border border-white/15 bg-ink-900 text-mist-200'
+          }`}
+        >
+          {status?.label ?? 'Checking…'}
+        </span>
+        <p className="text-sm text-mist-300">{status?.detail ?? 'Probing assistant API…'}</p>
+      </div>
+    </section>
+  )
+}
 
 function ProfilesSection() {
   const profiles = useIptvStore((s) => s.profiles)
@@ -384,7 +572,13 @@ export function SettingsPage() {
       <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
         <h2 className="font-display text-lg font-semibold">Xtream Codes login</h2>
         <p className="text-sm text-mist-300">
-          Enter panel URL, username, and password. On failure the app loads the demo pack so you can keep exploring.
+          Required fields: <span className="font-medium text-sand-100">Server URL</span> (panel
+          base, e.g. <span className="font-mono text-xs">http://host:port</span>),{' '}
+          <span className="font-medium text-sand-100">username</span>, and{' '}
+          <span className="font-medium text-sand-100">password</span>. Aether calls{' '}
+          <span className="font-mono text-xs">player_api.php</span> for live / VOD / series. Channels
+          with <span className="font-mono text-xs">tv_archive=1</span> unlock real timeshift URLs;
+          demo streams use a documented catch-up stub instead. On failure the app loads the demo pack.
         </p>
         <form onSubmit={onXtreamImport} className="space-y-3">
           <label className="block text-sm">
@@ -436,6 +630,10 @@ export function SettingsPage() {
           </p>
         )}
       </section>
+
+      <AuthSection />
+
+      <AiModeSection />
 
       <ProfilesSection />
 

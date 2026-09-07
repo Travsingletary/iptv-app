@@ -48,10 +48,22 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+
+      const view = useIptvStore.getState().view
+      const seedFocus =
+        view === 'multiview' || view === 'settings' || view === 'guide' || view === 'vod'
 
       // Spatial D-pad navigation when focus is already on a control
-      if (handleTvDirectionalKey(e)) return
+      if (handleTvDirectionalKey(e, document, { seedIfUnfocused: seedFocus })) return
+
+      // On mosaic / settings / guide, arrows are for focus — not channel zap
+      if (
+        (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+        seedFocus
+      ) {
+        return
+      }
 
       const live = channels.filter((c) => c.kind === 'live')
       const idx = live.findIndex((c) => c.id === player.channelId)

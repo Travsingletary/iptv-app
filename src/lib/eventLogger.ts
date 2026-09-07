@@ -1,4 +1,6 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from './supabaseClient'
+import { getAuthSnapshot } from './supabaseAuth'
 
 export type ClientEventType =
   | 'play_start'
@@ -44,22 +46,15 @@ function writeBuffer(events: ClientEvent[]) {
   window.localStorage.setItem(BUFFER_KEY, JSON.stringify(events.slice(-200)))
 }
 
-function createSupabaseClient(): SupabaseClient | null {
-  const url = import.meta.env.VITE_SUPABASE_URL
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
-}
-
-const supabase = createSupabaseClient()
-
-async function trySend(events: ClientEvent[]) {
-  if (!supabase || !events.length) return false
-  const { error } = await supabase.from('client_events').insert(
+async function trySend(events: ClientEvent[], sb: SupabaseClient | null) {
+  if (!sb || !events.length) return false
+  const auth = await getAuthSnapshot()
+  const { error } = await sb.from('client_events').insert(
     events.map((event) => ({
       event_type: event.type,
       created_at_ms: event.at,
       payload: event.payload,
+      user_id: auth.userId,
     })),
   )
   return !error
@@ -74,7 +69,8 @@ export const eventLogger: EventLogger = {
   async flush() {
     const current = readBuffer()
     if (!current.length) return
-    const sent = await trySend(current)
+    const sb = getSupabaseClient()
+    const sent = await trySend(current, sb)
     if (sent) writeBuffer([])
   },
   peekBuffer() {

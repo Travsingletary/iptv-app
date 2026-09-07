@@ -147,9 +147,13 @@ export function VideoPlayer({
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
-    video.muted = mutedOverride ?? muted ?? true
-    if (!silent) video.volume = volume
-  }, [muted, volume, mutedOverride, silent])
+    // mutedOverride=true forces silence (non-focused multi-view panes).
+    // undefined falls through to global mute.
+    const effectivelyMuted =
+      mutedOverride === true ? true : mutedOverride === false ? false : Boolean(muted)
+    video.muted = effectivelyMuted
+    video.volume = volume
+  }, [muted, volume, mutedOverride])
 
   return (
     <video
@@ -157,7 +161,9 @@ export function VideoPlayer({
       className={`h-full w-full bg-black object-contain ${className}`}
       playsInline
       autoPlay
-      muted={mutedOverride ?? muted}
+      muted={
+        mutedOverride === true ? true : mutedOverride === false ? false : Boolean(muted)
+      }
       poster={channel?.backdrop || channel?.poster}
     />
   )

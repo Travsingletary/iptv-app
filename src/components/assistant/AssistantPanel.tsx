@@ -12,6 +12,7 @@ import {
   memoryAsHistory,
 } from '../../lib/conversationMemory'
 import { getActiveProfile } from '../../lib/profiles'
+import { probeAiModeStatus, type AiModeStatus } from '../../lib/aiMode'
 import {
   getSpeechRecognitionCtor,
   isSpeechRecognitionSupported,
@@ -29,6 +30,7 @@ interface AssistantMessage {
   needsConfirmation?: boolean
   pendingUserText?: string
   source?: 'api' | 'local'
+  aiMode?: 'mock' | 'live'
 }
 
 export function AssistantPanel() {
@@ -45,6 +47,7 @@ export function AssistantPanel() {
   const [error, setError] = useState<string | null>(null)
   const [listening, setListening] = useState(false)
   const [voiceHint, setVoiceHint] = useState<string | null>(null)
+  const [aiMode, setAiMode] = useState<AiModeStatus | null>(null)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   const view = useIptvStore((s) => s.view)
@@ -86,6 +89,10 @@ export function AssistantPanel() {
     }),
     [activeProfile.id, activeProfile.interestTags, channels, currentChannelId, epg, favorites, recentIds, view, messages],
   )
+
+  useEffect(() => {
+    void probeAiModeStatus().then(setAiMode)
+  }, [])
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -161,6 +168,7 @@ export function AssistantPanel() {
           needsConfirmation: result.needsConfirmation,
           pendingUserText: result.needsConfirmation ? trimmed : undefined,
           source,
+          aiMode: result.aiMode,
         },
       ])
     } catch (err) {
@@ -236,7 +244,14 @@ export function AssistantPanel() {
             <div>
               <p className="font-display text-lg font-bold">Aether Assistant</p>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
-                Phase 4 · {activeProfile.name} · profiles · NL EPG
+                {activeProfile.name} · profiles · NL EPG
+              </p>
+              <p
+                data-testid="assistant-ai-mode"
+                className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-ember-400"
+              >
+                {aiMode?.label ?? 'AI…'}
+                {aiMode?.mode === 'mock' ? ' · no key required' : ''}
               </p>
             </div>
             <button
@@ -326,6 +341,11 @@ export function AssistantPanel() {
                 {message.source === 'local' && (
                   <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-mist-400">
                     Local fallback
+                  </p>
+                )}
+                {message.aiMode && (
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-mist-400">
+                    {message.aiMode === 'live' ? 'Live AI' : 'Mock AI'}
                   </p>
                 )}
                 {message.steps && message.steps.length > 1 && (

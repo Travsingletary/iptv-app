@@ -93,7 +93,7 @@ try {
   await page.getByRole('button', { name: /^Assistant$/i }).click()
   await page.waitForTimeout(400)
   const aside = page.locator('aside').last()
-  note(`assistant phase4+: ${/Phase 4/i.test(await aside.innerText())}`)
+  note(`assistant finish: ${/Mock AI|Live AI|profiles|NL EPG/i.test(await aside.innerText())}`)
 
   await page.screenshot({ path: path.join(outDir, 'phase6_ship_ready_shell.png') })
   note('PHASE6_VERIFY_OK')

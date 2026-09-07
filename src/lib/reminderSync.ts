@@ -1,33 +1,20 @@
 /**
  * Optional Supabase sync for program reminders.
  * Always keeps a localStorage source of truth; remote is best-effort.
+ * When Auth is signed in, rows are tagged with user_id for RLS.
  */
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { ProgramReminder } from '../types/iptv.js'
+import { getSupabaseClient, isSupabaseConfigured } from './supabaseClient'
+import { getAuthSnapshot } from './supabaseAuth'
 
 export type ReminderSyncStatus = 'local_only' | 'idle' | 'syncing' | 'synced' | 'error'
 
-let client: SupabaseClient | null | undefined
 let lastStatus: ReminderSyncStatus = 'local_only'
 let lastError: string | null = null
 let lastSyncedAt: number | null = null
 
-function getClient(): SupabaseClient | null {
-  if (client !== undefined) return client
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-  if (!url || !key) {
-    client = null
-    lastStatus = 'local_only'
-    return null
-  }
-  client = createClient(url, key)
-  lastStatus = 'idle'
-  return client
-}
-
 export function isReminderSyncConfigured(): boolean {
-  return Boolean(getClient())
+  return isSupabaseConfigured()
 }
 
 export function getReminderSyncState(): {
@@ -55,9 +42,11 @@ interface ReminderRow {
   created_at_ms: number
   fired: boolean
   dismissed: boolean
+  user_id?: string | null
+  profile_id?: string | null
 }
 
-function toRow(reminder: ProgramReminder): ReminderRow {
+function toRow(reminder: ProgramReminder, userId: string | null, profileId?: string | null): ReminderRow {
   return {
     id: reminder.id,
     program_id: reminder.programId,
@@ -68,6 +57,8 @@ function toRow(reminder: ProgramReminder): ReminderRow {
     created_at_ms: reminder.createdAt,
     fired: reminder.fired,
     dismissed: reminder.dismissed,
+    user_id: userId,
+    profile_id: profileId ?? null,
   }
 }
 
@@ -88,8 +79,9 @@ function fromRow(row: ReminderRow): ProgramReminder {
 /** Best-effort upsert; never throws to callers. */
 export async function syncRemindersToSupabase(
   reminders: ProgramReminder[],
+  profileId?: string | null,
 ): Promise<boolean> {
-  const sb = getClient()
+  const sb = getSupabaseClient()
   if (!sb) {
     lastStatus = 'local_only'
     return false
@@ -101,9 +93,11 @@ export async function syncRemindersToSupabase(
   lastStatus = 'syncing'
   lastError = null
   try {
-    const { error } = await sb.from('program_reminders').upsert(reminders.map(toRow), {
-      onConflict: 'id',
-    })
+    const auth = await getAuthSnapshot()
+    const { error } = await sb.from('program_reminders').upsert(
+      reminders.map((r) => toRow(r, auth.userId, profileId)),
+      { onConflict: 'id' },
+    )
     if (error) {
       lastStatus = 'error'
       lastError = error.message
@@ -120,16 +114,21 @@ export async function syncRemindersToSupabase(
 }
 
 export async function fetchRemindersFromSupabase(): Promise<ProgramReminder[] | null> {
-  const sb = getClient()
+  const sb = getSupabaseClient()
   if (!sb) return null
   lastStatus = 'syncing'
   try {
-    const { data, error } = await sb
+    const auth = await getAuthSnapshot()
+    let query = sb
       .from('program_reminders')
       .select('*')
       .eq('dismissed', false)
       .order('fire_at_ms', { ascending: true })
       .limit(80)
+    if (auth.userId) {
+      query = query.eq('user_id', auth.userId)
+    }
+    const { data, error } = await query
     if (error || !data) {
       lastStatus = 'error'
       lastError = error?.message ?? 'fetch failed'

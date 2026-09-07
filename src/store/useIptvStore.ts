@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { DEMO_CHANNELS, DEMO_EPG, DEMO_SOURCE, refreshDemoEpg } from '../lib/demoData'
-import { ingestXtream, xtreamDemoEpg, buildDemoCatchupStub, type XtreamCredentials } from '../lib/xtream'
+import { ingestXtream, xtreamDemoEpg, resolveCatchupPlayback, type XtreamCredentials } from '../lib/xtream'
 import { parseM3U } from '../lib/m3u'
 import { trackEvent } from '../lib/eventLogger'
 import type {
@@ -257,7 +257,9 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = [...s.reminders.filter((r) => !r.dismissed), reminder].slice(-80)
           saveReminders(reminders)
-          void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
+          void syncRemindersToSupabase(reminders, get().profiles.activeProfileId).then(() =>
+            get().refreshReminderSyncStatus(),
+          )
           return { reminders }
         })
         return reminder
@@ -267,7 +269,9 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = dismissReminderPure(s.reminders, id)
           saveReminders(reminders)
-          void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
+          void syncRemindersToSupabase(reminders, get().profiles.activeProfileId).then(() =>
+            get().refreshReminderSyncStatus(),
+          )
           return {
             reminders,
             reminderToasts: s.reminderToasts.filter((t) => t.id !== id),
@@ -278,7 +282,9 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const reminders = s.reminders.map((r) => ({ ...r, dismissed: true }))
           saveReminders(reminders)
-          void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
+          void syncRemindersToSupabase(reminders, get().profiles.activeProfileId).then(() =>
+            get().refreshReminderSyncStatus(),
+          )
           return { reminders, reminderToasts: [] }
         }),
 
@@ -292,7 +298,7 @@ export const useIptvStore = create<IptvState>()(
           const { next, newlyFired } = markDueReminders(s.reminders, now)
           if (!newlyFired.length) return s
           saveReminders(next)
-          void syncRemindersToSupabase(next)
+          void syncRemindersToSupabase(next, get().profiles.activeProfileId)
           return {
             reminders: next,
             reminderToasts: [...newlyFired, ...s.reminderToasts].slice(0, 5),
@@ -361,7 +367,9 @@ export const useIptvStore = create<IptvState>()(
                 reminders = [...reminders, createReminder(draft)].slice(-80)
               }
               saveReminders(reminders)
-              void syncRemindersToSupabase(reminders).then(() => get().refreshReminderSyncStatus())
+              void syncRemindersToSupabase(reminders, get().profiles.activeProfileId).then(() =>
+                get().refreshReminderSyncStatus(),
+              )
             }
             if (action.kind === 'toast_fallback_suggest' && action.fallbackSuggestions?.length) {
               player = {
@@ -485,15 +493,20 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const channel = s.channels.find((c) => c.id === s.player.channelId)
           if (!channel) return s
-          const stub = buildDemoCatchupStub(channel, minutesAgo)
+          const source =
+            s.sources.find((src) => src.id === s.activeSourceId) ??
+            s.sources.find((src) => src.type === 'xtream') ??
+            null
+          const resolved = resolveCatchupPlayback(channel, minutesAgo, source)
           return {
             player: {
               ...s.player,
               catchup: {
-                active: stub.supported,
+                active: resolved.supported,
                 minutesAgo,
-                label: stub.label,
-                url: stub.url,
+                label: resolved.label,
+                url: resolved.url,
+                mode: resolved.mode,
               },
               overlayVisible: true,
             },

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CI-friendly full verification runner for phases 2–6.
+ * CI-friendly full verification runner for phases 2–6 + finish pass.
  * Expects the app at AETHER_URL (default http://127.0.0.1:5173).
  *
  * Usage:
@@ -18,6 +18,7 @@ const scripts = [
   'verify-phase4.mjs',
   'verify-phase5.mjs',
   'verify-phase6.mjs',
+  'verify-finish.mjs',
 ]
 
 function run(script) {
