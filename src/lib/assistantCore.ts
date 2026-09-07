@@ -138,14 +138,61 @@ async function tryProviderReply(
   }
 }
 
+/**
+ * Short imperative commands where the local agent is authoritative.
+ * Used to fill Live AI gaps when the model replies without calling tools.
+ */
+function isCommandLikeIntent(message: string): boolean {
+  const q = message.trim()
+  if (!q || q.length > 140) return false
+  return (
+    /^(please\s+)?(mute|unmute|silence|quiet)(\s+please)?[!?.]*$/i.test(q) ||
+    /^(sound on|volume on)[!?.]*$/i.test(q) ||
+    /\bremind( me)?\b/i.test(q) ||
+    /^(recommend|suggest)\b/i.test(q) ||
+    /^play\b/i.test(q) ||
+    /\b(sports?|movies?|films?|news|kids)\b.*\b(next|under|hour|hours|min)\b/i.test(q)
+  )
+}
+
+/** Ensure Live AI cannot drop clear local tool intents (mute/remind flake guard). */
+function mergeMissingLocalTools(
+  provider: AssistantApiResult,
+  mock: AssistantApiResult,
+  message: string,
+): AssistantApiResult {
+  if (!isCommandLikeIntent(message) || !mock.toolCalls.length) return provider
+
+  const missing = mock.toolCalls.filter(
+    (local) => !provider.toolCalls.some((live) => live.tool === local.tool),
+  )
+  if (!missing.length) return provider
+
+  const missingSteps = (mock.steps ?? []).filter((step) =>
+    missing.some((tool) => tool.tool === step.tool),
+  )
+
+  return {
+    ...provider,
+    toolCalls: [...provider.toolCalls, ...missing],
+    steps: [...(provider.steps ?? []), ...missingSteps],
+    response:
+      provider.toolCalls.length > 0
+        ? provider.response
+        : [provider.response, mock.response].filter(Boolean).join(' ').trim() || mock.response,
+  }
+}
+
 export async function resolveAssistantReply(
   message: string,
   context: AssistantContextSnapshot,
   options: ResolveAssistantOptions = {},
 ): Promise<AssistantApiResult> {
+  const mock = buildMockReply(message, context, options)
+
   if (options.modelConfigured || options.apiKey) {
     const provider = await tryProviderReply(message, context, options)
-    if (provider) return provider
+    if (provider) return mergeMissingLocalTools(provider, mock, message)
   }
-  return buildMockReply(message, context, options)
+  return mock
 }

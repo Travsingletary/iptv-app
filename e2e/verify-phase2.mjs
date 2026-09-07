@@ -64,22 +64,42 @@ try {
   const input = page.getByPlaceholder(/Ask, remind, mute|Ask for channels/i)
   await input.fill('Mute')
   await page.keyboard.press('Enter')
-  await page.waitForTimeout(1500)
+  await page.waitForFunction(
+    () => {
+      const asides = document.querySelectorAll('aside')
+      const panel = asides[asides.length - 1]
+      const text = panel?.innerText || panel?.textContent || ''
+      return /set_mute/i.test(text) || /Muted playback/i.test(text)
+    },
+    undefined,
+    { timeout: 25_000 },
+  )
   let text = await aside.innerText()
   note(`set_mute surfaced: ${/set_mute/i.test(text)}`)
   if (!/set_mute/i.test(text)) throw new Error('set_mute not surfaced')
 
   const muted = await page.evaluate(() => {
-    const raw = localStorage.getItem('aether-iptv-v2')
-    // zustand persist may not expose muted; check video element
+    const storeMuted = window.__AETHER_STORE__?.getState()?.player?.muted
     const v = document.querySelector('video')
-    return v ? v.muted : null
+    return { storeMuted, videoMuted: v ? v.muted : null }
   })
-  note(`video muted after tool: ${muted}`)
+  note(`mute state after tool: ${JSON.stringify(muted)}`)
+  if (muted.storeMuted !== true && muted.videoMuted !== true) {
+    throw new Error('Expected muted=true in store or video after set_mute')
+  }
 
   await input.fill('Remind me when Match Center starts')
   await page.keyboard.press('Enter')
-  await page.waitForTimeout(1800)
+  await page.waitForFunction(
+    () => {
+      const asides = document.querySelectorAll('aside')
+      const panel = asides[asides.length - 1]
+      const text = panel?.innerText || panel?.textContent || ''
+      return /set_reminder/i.test(text) && /Reminders/i.test(text)
+    },
+    undefined,
+    { timeout: 25_000 },
+  )
   text = await aside.innerText()
   note(`set_reminder surfaced: ${/set_reminder/i.test(text)}`)
   if (!/set_reminder/i.test(text)) throw new Error('set_reminder not surfaced')
