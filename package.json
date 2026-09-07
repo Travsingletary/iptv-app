@@ -11,6 +11,7 @@
     "start:api": "node server/assistant-server.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:phase1": "node e2e/verify-phase1.mjs",
     "verify:phase2": "node e2e/verify-phase2.mjs",
     "verify:phase3": "node e2e/verify-phase3.mjs",
     "verify:phase4": "node e2e/verify-phase4.mjs",

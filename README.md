@@ -6,7 +6,7 @@ A cable / Netflix-style IPTV experience for the web: live TV, electronic program
 
 | Phase | Status | Highlights | Verify |
 | --- | --- | --- | --- |
-| 1 | Done | Assistant panel, telemetry, For You Now, `/api/assistant` | `npm test` |
+| 1 | Done | Assistant panel, telemetry, For You Now, `/api/assistant` (Live AI when keyed) | `npm test` / `npm run verify:phase1` |
 | 2 | Done | Voice intents, reminders, stream fallback chips | `npm run verify:phase2` |
 | 3 | Done | Agent loop, automation rules, provider adapter, reminder sync | `npm run verify:phase3` |
 | 4 | Done | Real LLM tools loop (API key), household profiles, NL EPG, reminder UX | `npm run verify:phase4` |
@@ -61,7 +61,7 @@ Open the printed local URL, choose **Enter with demo pack**, then browse Home / 
 | `npm run preview` | Preview build (also mounts `/api/assistant`) |
 | `npm run start:api` | Companion Node server: serves `dist/` + `/api/assistant` |
 | `npm test` | Unit tests |
-| `npm run verify:phase2` … `verify:phase6` | Per-phase Playwright runtime checks |
+| `npm run verify:phase1` … `verify:phase6` | Per-phase Playwright runtime checks |
 | `npm run verify:finish` | Finish-pass Auth / AI mode / catch-up / multi-view checks |
 | `npm run test:e2e` | Run phases 2–6 + finish e2e against `AETHER_URL` |
 

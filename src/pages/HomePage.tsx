@@ -7,11 +7,14 @@ import {
   useIptvStore,
 } from '../store/useIptvStore'
 import { buildForYouNow } from '../lib/recommendations'
+import { getActiveProfile } from '../lib/profiles'
 
 export function HomePage() {
   const channels = useIptvStore((s) => s.channels)
   const favorites = useIptvStore((s) => s.favorites)
   const recentIds = useIptvStore((s) => s.recentIds)
+  const profiles = useIptvStore((s) => s.profiles)
+  const activeProfile = useMemo(() => getActiveProfile(profiles), [profiles])
 
   const live = useMemo(() => selectLiveChannels(channels), [channels])
   const vod = useMemo(() => selectVod(channels), [channels])
@@ -26,8 +29,9 @@ export function HomePage() {
         channels,
         favorites,
         recentIds,
+        interestTags: activeProfile.interestTags,
       }),
-    [channels, favorites, recentIds],
+    [activeProfile.interestTags, channels, favorites, recentIds],
   )
 
   const byGroup = useMemo(() => {

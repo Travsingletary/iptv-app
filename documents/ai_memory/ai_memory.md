@@ -14,6 +14,7 @@
 
 ## Phase status
 
+- Phase 1 verified: assistant panel, event buffer telemetry, For You Now, `/api/assistant` tools; Live AI when `OPENAI_API_KEY` is set (`e2e/verify-phase1.mjs`). `.env` AI keys preferred over stale shell exports.
 - Phase 2 verified: voice intents, reminders, stream fallback chips (`e2e/verify-phase2.mjs`).
 - Phase 3: agent loop (`agentLoop`), automation rules, OpenAI-compatible provider adapter (env-gated), optional Supabase reminder sync.
 

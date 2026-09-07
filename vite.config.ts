@@ -87,10 +87,25 @@ function assistantApiPlugin() {
 }
 
 export default defineConfig(({ mode }) => {
-  // Load all `.env*` keys into process.env for the assistant middleware
-  // (Vite only auto-exposes VITE_* to the client via import.meta.env).
+  // Load `.env*` into process.env for the assistant middleware.
+  // Prefer non-empty file values for AI keys so a stale exported OPENAI_API_KEY
+  // in the shell cannot shadow a valid `.env` key.
   const fileEnv = loadEnv(mode, process.cwd(), '')
+  const preferFileKeys = new Set([
+    'OPENAI_API_KEY',
+    'OPENAI_BASE_URL',
+    'OPENAI_MODEL',
+    'AI_PROVIDER',
+    'VITE_OPENAI_API_KEY',
+    'VITE_OPENAI_BASE_URL',
+    'VITE_OPENAI_MODEL',
+    'VITE_AI_PROVIDER',
+  ])
   for (const [key, value] of Object.entries(fileEnv)) {
+    if (preferFileKeys.has(key) && value.trim()) {
+      process.env[key] = value
+      continue
+    }
     if (process.env[key] === undefined) process.env[key] = value
   }
 

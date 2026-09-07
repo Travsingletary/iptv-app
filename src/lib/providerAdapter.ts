@@ -63,10 +63,16 @@ const DEFAULT_TOOLS: ProviderToolDefinition[] = [
     type: 'function',
     function: {
       name: 'play_channel',
-      description: 'Switch playback to a channel by id',
+      description:
+        'Switch playback to a channel. Pass an exact channel id from the catalog, or the channel display name.',
       parameters: {
         type: 'object',
-        properties: { channelId: { type: 'string' } },
+        properties: {
+          channelId: {
+            type: 'string',
+            description: 'Exact channel id from the catalog, or the channel name',
+          },
+        },
         required: ['channelId'],
       },
     },
@@ -278,14 +284,18 @@ export async function runProviderToolLoop(
     content: turn.text,
   }))
 
+  const catalog = buildChannelCatalog(context)
   const messages: ProviderMessage[] = [
     {
       role: 'system',
       content: [
         'You are Aether, a concise IPTV assistant.',
         'Use tools for play, mute, remind, recommend, EPG search, guide, fallbacks.',
-        'Prefer short replies. Never invent channel IDs — use tool results.',
+        'Prefer short replies.',
+        'Never invent channel IDs — pick an exact id from Channels, or pass the channel name as channelId.',
+        'After tools run, summarize only what the tool results confirm (do not claim a different channel played).',
         `Context: view=${context.view} channel=${context.currentChannelId ?? 'none'} favorites=${context.favorites.slice(0, 8).join(',')}`,
+        catalog ? `Channels (id=name): ${catalog}` : 'Channels: (none loaded)',
       ].join(' '),
     },
     ...history,
@@ -347,7 +357,7 @@ export async function runProviderToolLoop(
       }
 
       // Build a synthetic utterance the local agent understands for this tool
-      const synthetic = syntheticMessageForTool(name, input, message)
+      const synthetic = syntheticMessageForTool(name, input, message, context)
       const local = runAgentTurn(synthetic, context, { confirmed: options.confirmed })
       allSteps.push(...local.steps)
       allToolCalls.push(...local.toolCalls)
@@ -398,10 +408,27 @@ export async function runProviderToolLoop(
   }
 }
 
-function syntheticMessageForTool(
+/** Compact id=name catalog so the model can pass real channel ids. */
+export function buildChannelCatalog(
+  context: Pick<AssistantContextSnapshot, 'channels'>,
+  limit = 48,
+): string {
+  return context.channels
+    .slice(0, limit)
+    .map((ch) => `${ch.id}=${ch.name}`)
+    .join('; ')
+}
+
+/**
+ * Map a provider tool call into an utterance the local allowlisted agent understands.
+ * For play_channel, prefer the original user utterance when it names a channel so
+ * hallucinated model ids (often the current channel) do not win.
+ */
+export function syntheticMessageForTool(
   tool: string,
   input: Record<string, string>,
   original: string,
+  context?: Pick<AssistantContextSnapshot, 'channels'>,
 ): string {
   switch (tool) {
     case 'set_mute':
@@ -414,8 +441,22 @@ function syntheticMessageForTool(
       return `What is on ${input.query || original}`
     case 'open_guide':
       return 'Open the guide'
-    case 'play_channel':
-      return `Play ${input.channelId || original}`
+    case 'play_channel': {
+      const requested = (input.channelId || '').trim()
+      const channels = context?.channels ?? []
+      // If the user utterance names a channel, prefer that over a model id
+      // (models often echo the current channel id).
+      const namedInOriginal = [...channels]
+        .sort((a, b) => b.name.length - a.name.length)
+        .find((ch) => original.toLowerCase().includes(ch.name.toLowerCase()))
+      if (namedInOriginal) return `Play ${namedInOriginal.name}`
+
+      const knownId = Boolean(requested && channels.some((ch) => ch.id === requested))
+      if (knownId) return `Play ${requested}`
+
+      if (/\b(play|watch|tune|switch)\b/i.test(original)) return original
+      return requested ? `Play ${requested}` : original
+    }
     case 'clear_reminders':
       return 'Clear all reminders'
     case 'suggest_fallback':

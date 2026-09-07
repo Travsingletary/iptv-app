@@ -42,4 +42,18 @@ describe('buildForYouNow', () => {
 
     expect(first.map((ch) => ch.id)).toEqual(second.map((ch) => ch.id))
   })
+
+  it('biases toward interest tags when provided', () => {
+    const picks = buildForYouNow(
+      {
+        channels: DEMO_CHANNELS,
+        favorites: [],
+        recentIds: [],
+        interestTags: ['sports'],
+        now: new Date('2026-09-03T14:00:00Z'),
+      },
+      3,
+    )
+    expect(picks[0]?.group.toLowerCase()).toContain('sport')
+  })
 })
