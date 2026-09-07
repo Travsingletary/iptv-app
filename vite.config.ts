@@ -1,4 +1,4 @@
-import { defineConfig, type Connect, type PreviewServer, type ViteDevServer } from 'vite'
+import { defineConfig, loadEnv, type Connect, type PreviewServer, type ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolveAssistantReply } from './src/lib/assistantCore.ts'
 
@@ -9,7 +9,7 @@ interface AssistantRequestBody {
 }
 
 function aiStatusPayload() {
-  const configured = Boolean(process.env.OPENAI_API_KEY)
+  const configured = Boolean(process.env.OPENAI_API_KEY?.trim())
   return {
     ok: true,
     aiMode: configured ? 'live' : 'mock',
@@ -50,7 +50,7 @@ function attachAssistantMiddleware(middlewares: Connect.Server) {
         }
 
         const result = await resolveAssistantReply(message, context, {
-          modelConfigured: Boolean(process.env.OPENAI_API_KEY),
+          modelConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
           apiKey: process.env.OPENAI_API_KEY,
           provider: process.env.AI_PROVIDER,
           baseUrl: process.env.OPENAI_BASE_URL,
@@ -86,14 +86,23 @@ function assistantApiPlugin() {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), assistantApiPlugin()],
-  server: {
-    host: true,
-    port: 5173,
-  },
-  preview: {
-    host: true,
-    port: 4173,
-  },
+export default defineConfig(({ mode }) => {
+  // Load all `.env*` keys into process.env for the assistant middleware
+  // (Vite only auto-exposes VITE_* to the client via import.meta.env).
+  const fileEnv = loadEnv(mode, process.cwd(), '')
+  for (const [key, value] of Object.entries(fileEnv)) {
+    if (process.env[key] === undefined) process.env[key] = value
+  }
+
+  return {
+    plugins: [react(), assistantApiPlugin()],
+    server: {
+      host: true,
+      port: 5173,
+    },
+    preview: {
+      host: true,
+      port: 4173,
+    },
+  }
 })

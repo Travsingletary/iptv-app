@@ -19,6 +19,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(__dirname, '..')
 const distDir = path.join(root, 'dist')
 const bundlePath = path.join(__dirname, '.assistant-core.bundle.mjs')
+
+/** Load `.env` / `.env.local` into process.env without adding a dotenv dependency. */
+function loadDotEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return
+  const text = fs.readFileSync(filePath, 'utf8')
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const eq = line.indexOf('=')
+    if (eq <= 0) continue
+    const key = line.slice(0, eq).trim()
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue
+    if (process.env[key] !== undefined) continue
+    let value = line.slice(eq + 1).trim()
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    process.env[key] = value
+  }
+}
+
+loadDotEnvFile(path.join(root, '.env'))
+loadDotEnvFile(path.join(root, '.env.local'))
+
 const port = Number(process.env.PORT || 4173)
 
 const MIME = {
@@ -101,7 +128,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.url?.startsWith('/api/assistant')) {
       if (req.method === 'GET' || req.method === 'HEAD') {
-        const configured = Boolean(process.env.OPENAI_API_KEY)
+        const configured = Boolean(process.env.OPENAI_API_KEY?.trim())
         sendJson(res, 200, {
           ok: true,
           aiMode: configured ? 'live' : 'mock',
@@ -122,7 +149,7 @@ const server = http.createServer(async (req, res) => {
         return
       }
       const result = await resolveAssistantReply(message, context, {
-        modelConfigured: Boolean(process.env.OPENAI_API_KEY),
+        modelConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
         apiKey: process.env.OPENAI_API_KEY,
         provider: process.env.AI_PROVIDER,
         baseUrl: process.env.OPENAI_BASE_URL,
