@@ -26,6 +26,7 @@ const NAV: { id: AppView; label: string; icon: typeof Tv }[] = [
 export function SideNav() {
   const view = useIptvStore((s) => s.view)
   const setView = useIptvStore((s) => s.setView)
+  const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
   const prefs = useIptvStore((s) => s.prefs)
   const [clock, setClock] = useState(formatClock())
 
@@ -34,6 +35,14 @@ export function SideNav() {
     return () => window.clearInterval(t)
   }, [])
 
+  const onNav = (id: AppView) => {
+    if (id === 'multiview') {
+      const layout = useIptvStore.getState().player.multiViewLayout
+      setMultiViewLayout(layout === 4 ? 4 : 2)
+      return
+    }
+    setView(id)
+  }
   return (
     <aside className="relative z-30 flex h-full w-[4.75rem] flex-col border-r border-white/8 bg-ink-900/90 backdrop-blur-xl md:w-56">
       <div className="border-b border-white/8 px-3 py-5 md:px-5">
@@ -63,7 +72,7 @@ export function SideNav() {
               key={item.id}
               type="button"
               data-tv-focus
-              onClick={() => setView(item.id)}
+              onClick={() => onNav(item.id)}
               className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition focus-visible:focus-ring ${
                 active
                   ? 'bg-ember-500/15 text-sand-50'
