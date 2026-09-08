@@ -105,7 +105,7 @@ export function OnboardingPage() {
             }}
             className="rounded-full border border-white/20 bg-ink-900/60 px-6 py-3.5 text-sm font-medium backdrop-blur"
           >
-            Import my M3U
+            Import MegaOTT / M3U
           </button>
         </motion.div>
       </div>

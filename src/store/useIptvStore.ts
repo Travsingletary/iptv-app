@@ -495,7 +495,7 @@ export const useIptvStore = create<IptvState>()(
           if (!channel) return s
           const source =
             s.sources.find((src) => src.id === s.activeSourceId) ??
-            s.sources.find((src) => src.type === 'xtream') ??
+            s.sources.find((src) => src.type === 'megaott' || src.type === 'xtream') ??
             null
           const resolved = resolveCatchupPlayback(channel, minutesAgo, source)
           return {

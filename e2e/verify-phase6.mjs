@@ -87,7 +87,8 @@ try {
   await page.getByRole('button', { name: 'Settings' }).click()
   await page.waitForTimeout(400)
   const settings = await page.locator('body').innerText()
-  note(`settings xtream: ${/Xtream Codes/i.test(settings)}`)
+  note(`settings megaott: ${/MegaOTT/i.test(settings)}`)
+  note(`settings xtream advanced: ${/Xtream-compatible API/i.test(settings)}`)
   note(`settings profiles: ${/Household profiles/i.test(settings)}`)
 
   await page.getByRole('button', { name: /^Assistant$/i }).click()

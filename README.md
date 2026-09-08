@@ -1,6 +1,6 @@
 # Aether — Premium IPTV Player
 
-A cable / Netflix-style IPTV experience for the web: live TV, electronic program guide, on-demand rails, favorites, M3U / Xtream import, multi-view, and an assistant agent.
+A cable / Netflix-style IPTV experience for the web: live TV, electronic program guide, on-demand rails, favorites, M3U / MegaOTT import, multi-view, and an assistant agent.
 
 ## Phase map
 
@@ -10,9 +10,9 @@ A cable / Netflix-style IPTV experience for the web: live TV, electronic program
 | 2 | Done | Voice intents, reminders, stream fallback chips | `npm run verify:phase2` |
 | 3 | Done | Agent loop, automation rules, provider adapter, reminder sync | `npm run verify:phase3` |
 | 4 | Done | Real LLM tools loop (API key), household profiles, NL EPG, reminder UX | `npm run verify:phase4` |
-| 5 | Done | Xtream login, catch-up stub, 2/4-up multi-view, TV focus | `npm run verify:phase5` |
+| 5 | Done | MegaOTT / Xtream-compatible login, catch-up stub, 2/4-up multi-view, TV focus | `npm run verify:phase5` |
 | 6 | Done | Supabase RLS notes, CI e2e suite, README/env docs | `npm run verify:phase6` / `npm run test:e2e` |
-| Finish | Done | Auth UI, AI mode indicator, Xtream/catch-up harden, multi-view audio | `npm run verify:finish` |
+| Finish | Done | Auth UI, AI mode indicator, MegaOTT/catch-up harden, multi-view audio | `npm run verify:finish` |
 
 Verify-before-building is enforced in `AGENTS.md` and `documents/ai_memory/ai_memory.md`.
 
@@ -24,9 +24,9 @@ Verify-before-building is enforced in `AGENTS.md` and `documents/ai_memory/ai_me
 - **Multi-view** 2-up / 4-up live mosaic with per-slot focus and **single audible pane**
 - **Home** Netflix-style hero + content rails
 - **Favorites** and continue-watching
-- **M3U import** via URL or paste (Settings)
-- **Xtream Codes** server/user/pass login with graceful demo fallback
-- **Catch-up / timeshift** — demo stub for sample streams; real `timeshift.php` URLs when an Xtream panel advertises `tv_archive`
+- **M3U import** via URL or paste (Settings) — MegaOTT `get.php` links work; paste if CORS blocks fetch
+- **MegaOTT** portal URL + username + password (Xtream-compatible `player_api.php`) with graceful demo fallback
+- **Catch-up / timeshift** — demo stub when archive unavailable; real `timeshift.php` URLs when MegaOTT / panel advertises `tv_archive`
 - **Household profiles** with separate favorites bias and assistant memory
 - **Supabase Auth** (optional) — Settings sign-in/out when `VITE_SUPABASE_*` is set
 - **Assistant agent** multi-step tools, NL EPG (“sports in next 2 hours”), confirm gates; **Mock AI** by default, **Live AI** with a key
@@ -46,7 +46,7 @@ Open the printed local URL, choose **Enter with demo pack**, then browse Home / 
 
 | Capability | Without secrets (demo) | With credentials |
 | --- | --- | --- |
-| Playback / guide / multi-view | Full demo HLS pack | Your M3U / Xtream playlist |
+| Playback / guide / multi-view | Full demo HLS pack | Your M3U / MegaOTT playlist |
 | Assistant | **Mock AI** (deterministic tools) | **Live AI** via `OPENAI_API_KEY` |
 | Reminders / telemetry | `localStorage` | Supabase sync (`VITE_SUPABASE_*`) |
 | Account / RLS | Auth section disabled | Sign in → rows tagged with `user_id` |
@@ -81,16 +81,19 @@ Copy `.env.example` → `.env.local`:
 
 Without AI keys the deterministic mock agent still runs (Settings shows **Mock AI**). Without Supabase, events and reminders stay in `localStorage` and Auth stays disabled.
 
-### Xtream fields (Settings)
+### MegaOTT fields (Settings)
 
 | Field | Required | Notes |
 | --- | --- | --- |
-| Server URL | Yes | Panel base (`http://host:port`), no path required |
-| Username | Yes | Panel username |
-| Password | Yes | Panel password |
-| Archive | Provider | Channels with `tv_archive=1` enable catch-up controls + timeshift URLs |
+| Portal / server URL | Yes | Panel base from MegaOTT email/app (`http://host:port`) |
+| Username | Yes | MegaOTT username |
+| Password | Yes | MegaOTT password |
+| Playlist / get.php URL | Optional | Paste full M3U link to auto-fill credentials or ingest |
+| Archive | Provider | Channels with `tv_archive=1` enable catch-up + timeshift URLs |
 
-Browser CORS may block some remote panels; paste an M3U as a workaround.
+Advanced: collapsed **Xtream-compatible API** uses the same fields with Xtream labeling.
+
+Browser CORS may block some remote panels or `get.php` fetches; paste an M3U as a workaround.
 
 ## Assistant API
 
@@ -118,8 +121,8 @@ React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js
 
 ## Notes
 
-- Some remote M3U / Xtream URLs are blocked by browser CORS; paste import still works.
+- Some remote M3U / MegaOTT portal URLs are blocked by browser CORS; paste import still works.
 - Demo streams are public HLS test assets — not a commercial IPTV service.
-- Demo catch-up is a documented stub (`aether_catchup=` query) because public samples have no archive.
+- Demo catch-up is a documented stub (`aether_catchup=` query) because public samples have no MegaOTT archive.
 - Bring your own legal playlist / provider credentials.
 - Headless / some browsers lack `SpeechRecognition` — typed assistant intents still work.

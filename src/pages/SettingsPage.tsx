@@ -10,6 +10,7 @@ import {
   type AuthSnapshot,
 } from '../lib/supabaseAuth'
 import { probeAiModeStatus, type AiModeStatus } from '../lib/aiMode'
+import { normalizePortalBase, parsePanelOrPlaylistUrl } from '../lib/panelCredentials'
 
 
 function AuthSection() {
@@ -396,9 +397,11 @@ export function SettingsPage() {
   const [name, setName] = useState('My Playlist')
   const [url, setUrl] = useState('')
   const [paste, setPaste] = useState('')
-  const [xtreamServer, setXtreamServer] = useState('')
-  const [xtreamUser, setXtreamUser] = useState('')
-  const [xtreamPass, setXtreamPass] = useState('')
+  const [portalUrl, setPortalUrl] = useState('')
+  const [portalUser, setPortalUser] = useState('')
+  const [portalPass, setPortalPass] = useState('')
+  const [playlistLink, setPlaylistLink] = useState('')
+  const [parseHint, setParseHint] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -417,20 +420,80 @@ export function SettingsPage() {
     }
   }
 
-
-  const onXtreamImport = async (e: FormEvent) => {
-    e.preventDefault()
+  const connectPanel = async (provider: 'megaott' | 'xtream') => {
     setBusy(true)
     setStatus(null)
     try {
       const result = await importXtream({
-        server: xtreamServer.trim(),
-        username: xtreamUser.trim(),
-        password: xtreamPass,
+        server: portalUrl.trim(),
+        username: portalUser.trim(),
+        password: portalPass,
+        provider,
       })
       setStatus(result.message)
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : 'Xtream import failed')
+      setStatus(err instanceof Error ? err.message : 'Panel import failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onMegaOttConnect = async (e: FormEvent) => {
+    e.preventDefault()
+    await connectPanel('megaott')
+  }
+
+  const onAdvancedXtreamConnect = async (e: FormEvent) => {
+    e.preventDefault()
+    await connectPanel('xtream')
+  }
+
+  const onPlaylistLinkApply = () => {
+    const parsed = parsePanelOrPlaylistUrl(playlistLink, 'megaott')
+    setParseHint(parsed.hint)
+    if (parsed.credentials) {
+      setPortalUrl(parsed.credentials.server)
+      setPortalUser(parsed.credentials.username)
+      setPortalPass(parsed.credentials.password)
+      setStatus(
+        parsed.isPlaylistUrl
+          ? 'Credentials filled from playlist URL — click Connect MegaOTT (or Import M3U URL if the browser can fetch it).'
+          : 'Credentials filled — click Connect MegaOTT.',
+      )
+    } else if (normalizePortalBase(playlistLink)) {
+      setPortalUrl(normalizePortalBase(playlistLink))
+      setStatus('Portal host filled — enter username and password from your MegaOTT email or app.')
+    }
+  }
+
+  const onPlaylistLinkImportM3U = async () => {
+    setBusy(true)
+    setStatus(null)
+    try {
+      const parsed = parsePanelOrPlaylistUrl(playlistLink, 'megaott')
+      if (parsed.credentials) {
+        setPortalUrl(parsed.credentials.server)
+        setPortalUser(parsed.credentials.username)
+        setPortalPass(parsed.credentials.password)
+      }
+      // Prefer API ingest when we have credentials (richer VOD/series + catch-up metadata)
+      if (parsed.credentials) {
+        const result = await importXtream({
+          ...parsed.credentials,
+          provider: 'megaott',
+        })
+        setStatus(result.message)
+        return
+      }
+      await importM3UUrl(name || 'MegaOTT playlist', playlistLink.trim())
+      setStatus('MegaOTT playlist imported from URL.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Import failed'
+      setStatus(
+        /Failed to fetch|CORS|NetworkError|network/i.test(msg)
+          ? `${msg} — browser CORS often blocks remote playlists; paste the M3U contents below or use portal login.`
+          : msg,
+      )
     } finally {
       setBusy(false)
     }
@@ -509,12 +572,146 @@ export function SettingsPage() {
         </div>
       </section>
 
+      <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6" data-testid="megaott-section">
+        <div>
+          <h2 className="font-display text-lg font-semibold">MegaOTT</h2>
+          <p className="mt-1 text-sm text-mist-300">
+            Connect with the portal URL, username, and password from your MegaOTT welcome email or
+            app (often labeled DNS / Server / Portal). MegaOTT panels speak the Xtream-compatible{' '}
+            <span className="font-mono text-xs">player_api.php</span> dialect — Aether reuses that
+            client. Channels with <span className="font-mono text-xs">tv_archive=1</span> unlock real
+            catch-up; otherwise you get a clear MegaOTT archive stub. On failure the demo pack loads.
+          </p>
+        </div>
+        <form onSubmit={onMegaOttConnect} className="space-y-3">
+          <label className="block text-sm">
+            Portal / server URL
+            <input
+              value={portalUrl}
+              onChange={(e) => setPortalUrl(e.target.value)}
+              placeholder="http://host:port"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+              data-tv-focus
+              data-testid="megaott-portal"
+              aria-label="MegaOTT portal URL"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              Username
+              <input
+                value={portalUser}
+                onChange={(e) => setPortalUser(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+                data-tv-focus
+                data-testid="megaott-username"
+                aria-label="MegaOTT username"
+              />
+            </label>
+            <label className="block text-sm">
+              Password
+              <input
+                type="password"
+                value={portalPass}
+                onChange={(e) => setPortalPass(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+                data-tv-focus
+                data-testid="megaott-password"
+                aria-label="MegaOTT password"
+              />
+            </label>
+          </div>
+          <button
+            type="submit"
+            disabled={busy || !portalUrl.trim() || !portalUser.trim() || !portalPass}
+            className="rounded-full bg-sand-50 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-40"
+            data-tv-focus
+            data-testid="megaott-connect"
+          >
+            {busy ? 'Connecting…' : 'Connect MegaOTT'}
+          </button>
+        </form>
+
+        <div className="space-y-3 border-t border-white/8 pt-4">
+          <p className="text-sm text-mist-300">
+            Or paste a MegaOTT <span className="font-mono text-xs">get.php</span> / M3U link — we
+            extract host + credentials. If the browser blocks URL fetch (CORS), use Connect MegaOTT
+            above or paste playlist text in Import M3U.
+          </p>
+          <label className="block text-sm">
+            Playlist / get.php URL
+            <input
+              value={playlistLink}
+              onChange={(e) => setPlaylistLink(e.target.value)}
+              placeholder="http://host:port/get.php?username=…&password=…&type=m3u_plus"
+              className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 font-mono text-xs outline-none focus:border-ember-400/50"
+              data-tv-focus
+              data-testid="megaott-playlist-url"
+            />
+          </label>
+          {parseHint && (
+            <p className="text-xs text-mist-400" data-testid="megaott-parse-hint">
+              {parseHint}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!playlistLink.trim()}
+              onClick={onPlaylistLinkApply}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+              data-tv-focus
+            >
+              Fill fields from URL
+            </button>
+            <button
+              type="button"
+              disabled={busy || !playlistLink.trim()}
+              onClick={() => void onPlaylistLinkImportM3U()}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+              data-tv-focus
+            >
+              {busy ? 'Importing…' : 'Connect from playlist URL'}
+            </button>
+          </div>
+        </div>
+
+        <details className="rounded-xl border border-white/8 bg-ink-850/50 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium text-sand-100" data-tv-focus>
+            Xtream-compatible API (advanced)
+          </summary>
+          <p className="mt-2 text-xs text-mist-400">
+            Same portal fields — labels the source as Xtream instead of MegaOTT. Use when your panel
+            is not MegaOTT-branded.
+          </p>
+          <form onSubmit={onAdvancedXtreamConnect} className="mt-3">
+            <button
+              type="submit"
+              disabled={busy || !portalUrl.trim() || !portalUser.trim() || !portalPass}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+              data-tv-focus
+            >
+              {busy ? 'Connecting…' : 'Connect as Xtream'}
+            </button>
+          </form>
+        </details>
+
+        {status && (
+          <p
+            data-testid="xtream-status"
+            className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100"
+          >
+            {status}
+          </p>
+        )}
+      </section>
+
       <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
         <h2 className="font-display text-lg font-semibold">Import M3U</h2>
         <p className="text-sm text-mist-300">
-          Paste a playlist or fetch from URL. Xtream-style panel URLs that return
-          M3U work here too. Browser CORS may block some remotes — paste works
-          offline.
+          Paste a MegaOTT (or any) playlist, or fetch from URL. Browser CORS may block remote{' '}
+          <span className="font-mono text-xs">get.php</span> links — paste works offline and is the
+          reliable fallback.
         </p>
         <label className="block text-sm">
           Display name
@@ -530,7 +727,7 @@ export function SettingsPage() {
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://…/playlist.m3u"
+              placeholder="https://…/playlist.m3u or get.php?…"
               className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
             />
           </label>
@@ -551,81 +748,20 @@ export function SettingsPage() {
               rows={6}
               placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-id=&quot;…&quot; group-title=&quot;News&quot;,Channel&#10;https://…"
               className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 font-mono text-xs outline-none focus:border-ember-400/50"
+              data-testid="m3u-paste"
             />
           </label>
           <button
             type="submit"
             disabled={!paste.trim()}
             className="rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+            data-testid="m3u-paste-import"
           >
             Import pasted playlist
           </button>
         </form>
         {status && (
           <p className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100">
-            {status}
-          </p>
-        )}
-      </section>
-
-
-      <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
-        <h2 className="font-display text-lg font-semibold">Xtream Codes login</h2>
-        <p className="text-sm text-mist-300">
-          Required fields: <span className="font-medium text-sand-100">Server URL</span> (panel
-          base, e.g. <span className="font-mono text-xs">http://host:port</span>),{' '}
-          <span className="font-medium text-sand-100">username</span>, and{' '}
-          <span className="font-medium text-sand-100">password</span>. Aether calls{' '}
-          <span className="font-mono text-xs">player_api.php</span> for live / VOD / series. Channels
-          with <span className="font-mono text-xs">tv_archive=1</span> unlock real timeshift URLs;
-          demo streams use a documented catch-up stub instead. On failure the app loads the demo pack.
-        </p>
-        <form onSubmit={onXtreamImport} className="space-y-3">
-          <label className="block text-sm">
-            Server URL
-            <input
-              value={xtreamServer}
-              onChange={(e) => setXtreamServer(e.target.value)}
-              placeholder="http://host:port"
-              className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
-              data-tv-focus
-            />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm">
-              Username
-              <input
-                value={xtreamUser}
-                onChange={(e) => setXtreamUser(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
-                data-tv-focus
-              />
-            </label>
-            <label className="block text-sm">
-              Password
-              <input
-                type="password"
-                value={xtreamPass}
-                onChange={(e) => setXtreamPass(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
-                data-tv-focus
-              />
-            </label>
-          </div>
-          <button
-            type="submit"
-            disabled={busy || !xtreamServer.trim() || !xtreamUser.trim() || !xtreamPass}
-            className="rounded-full bg-sand-50 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-40"
-            data-tv-focus
-          >
-            {busy ? 'Connecting…' : 'Connect Xtream'}
-          </button>
-        </form>
-        {status && (
-          <p
-            data-testid="xtream-status"
-            className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100"
-          >
             {status}
           </p>
         )}

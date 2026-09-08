@@ -1,14 +1,22 @@
 /**
- * Xtream Codes API client with graceful demo fallback.
+ * Xtream Codes–compatible API client (MegaOTT and other panels) with demo fallback.
  * Spec: player_api.php?username=&password=&action=
  */
 import type { Channel, ContentKind, PlaylistSource } from '../types/iptv.js'
 import { DEMO_CHANNELS, DEMO_SOURCE, refreshDemoEpg } from './demoData.js'
+import {
+  detectPanelProvider,
+  normalizePortalBase,
+  providerDisplayName,
+  type PanelProvider,
+} from './panelCredentials.js'
 
 export interface XtreamCredentials {
   server: string
   username: string
   password: string
+  /** User-facing provider; MegaOTT panels speak the same player_api.php dialect. */
+  provider?: PanelProvider
 }
 
 export interface XtreamIngestResult {
@@ -27,6 +35,14 @@ export interface CatchupPlayback {
   label: string
   supported: boolean
   mode: 'xtream' | 'demo_stub' | 'unsupported'
+}
+
+function resolveProvider(creds: XtreamCredentials): PanelProvider {
+  return creds.provider ?? detectPanelProvider(creds.server)
+}
+
+function isPanelSource(source?: PlaylistSource | null): source is PlaylistSource {
+  return Boolean(source && (source.type === 'xtream' || source.type === 'megaott'))
 }
 
 interface XtreamStreamRow {
@@ -48,9 +64,11 @@ interface XtreamStreamRow {
 }
 
 function normalizeServer(server: string): string {
-  let s = server.trim().replace(/\/$/, '')
-  if (!/^https?:\/\//i.test(s)) s = `http://${s}`
-  return s
+  return normalizePortalBase(server) || (() => {
+    let s = server.trim().replace(/\/$/, '')
+    if (!/^https?:\/\//i.test(s)) s = `http://${s}`
+    return s
+  })()
 }
 
 export function buildXtreamApiUrl(
@@ -115,8 +133,10 @@ function mapRow(
   const ext = row.container_extension || 'm3u8'
   const streamKind = kind === 'live' ? 'live' : kind === 'series' ? 'series' : 'movie'
   const archiveHours = Number(row.tv_archive_duration)
+  const provider = resolveProvider(creds)
+  const idPrefix = provider === 'megaott' ? 'megaott' : 'xtream'
   return {
-    id: `xtream_${kind}_${streamId}`,
+    id: `${idPrefix}_${kind}_${streamId}`,
     name: row.name,
     group: row.category_name || groupFallback,
     url: buildXtreamStreamUrl(creds, streamKind === 'live' ? 'live' : streamKind === 'series' ? 'series' : 'movie', streamId, ext),
@@ -159,15 +179,15 @@ async function fetchAction(
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw err
     throw new Error(
-      `Xtream ${action} network/CORS failure — use a reachable panel or paste an M3U instead (${err instanceof Error ? err.message : 'fetch failed'})`,
+      `Panel ${action} network/CORS failure — use a reachable portal or paste an M3U instead (${err instanceof Error ? err.message : 'fetch failed'})`,
     )
   }
-  if (!res.ok) throw new Error(`Xtream ${action} failed (HTTP ${res.status})`)
+  if (!res.ok) throw new Error(`Panel ${action} failed (HTTP ${res.status})`)
   let json: unknown
   try {
     json = await res.json()
   } catch {
-    throw new Error(`Xtream ${action} returned non-JSON (check server URL)`)
+    throw new Error(`Panel ${action} returned non-JSON (check portal URL)`)
   }
   if (Array.isArray(json)) return json as XtreamStreamRow[]
   // Some panels wrap lists: { streams: [...] } or { data: [...] }
@@ -191,17 +211,17 @@ async function authenticate(
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw err
     throw new Error(
-      `Cannot reach Xtream panel (network/CORS). Confirm the server URL is browser-reachable.`,
+      `Cannot reach panel (network/CORS). Confirm the portal URL is browser-reachable, or paste an M3U.`,
     )
   }
   if (!res.ok) {
-    throw new Error(`Xtream auth HTTP ${res.status} — check server URL`)
+    throw new Error(`Panel auth HTTP ${res.status} — check portal URL`)
   }
   let json: unknown
   try {
     json = await res.json()
   } catch {
-    throw new Error('Xtream auth returned non-JSON — is this a player_api.php panel?')
+    throw new Error('Panel auth returned non-JSON — expect player_api.php (MegaOTT / Xtream-compatible)')
   }
   const info = (json as { user_info?: Record<string, unknown> })?.user_info
   if (!info) return false
@@ -221,7 +241,7 @@ export function formatXtreamError(err: unknown): string {
 }
 
 /**
- * Ingest live + VOD + series from an Xtream panel.
+ * Ingest live + VOD + series from a MegaOTT / Xtream-compatible panel.
  * On network/auth failure, returns demo pack with usedDemoFallback=true.
  */
 export async function ingestXtream(
@@ -230,16 +250,18 @@ export async function ingestXtream(
 ): Promise<XtreamIngestResult> {
   const demoOnFailure = options.demoOnFailure !== false
   const timeoutMs = options.timeoutMs ?? 4_000
+  const provider = resolveProvider(creds)
+  const label = providerDisplayName(provider)
 
   if (!creds.server.trim() || !creds.username.trim() || !creds.password) {
-    const err = new Error('Xtream requires server URL, username, and password')
+    const err = new Error(`${label} requires portal URL, username, and password`)
     if (!demoOnFailure) throw err
     return {
       ok: false,
       source: { ...DEMO_SOURCE, createdAt: Date.now() },
       channels: DEMO_CHANNELS,
       usedDemoFallback: true,
-      message: `Xtream unavailable (${err.message}). Loaded demo pack instead.`,
+      message: `${label} unavailable (${err.message}). Loaded demo pack instead.`,
       liveCount: DEMO_CHANNELS.filter((c) => c.kind === 'live').length,
       vodCount: DEMO_CHANNELS.filter((c) => c.kind === 'movie').length,
       seriesCount: DEMO_CHANNELS.filter((c) => c.kind === 'series').length,
@@ -247,9 +269,9 @@ export async function ingestXtream(
   }
 
   const sourceBase: PlaylistSource = {
-    id: `xtream_${Date.now().toString(36)}`,
-    name: `Xtream · ${creds.username}`,
-    type: 'xtream',
+    id: `${provider}_${Date.now().toString(36)}`,
+    name: `${label} · ${creds.username}`,
+    type: provider === 'megaott' ? 'megaott' : 'xtream',
     url: normalizeServer(creds.server),
     username: creds.username,
     password: creds.password,
@@ -264,7 +286,7 @@ export async function ingestXtream(
     try {
       const signal = controller.signal
       const ok = await authenticate(creds, signal)
-      if (!ok) throw new Error('Xtream authentication failed — invalid username/password')
+      if (!ok) throw new Error(`${label} authentication failed — invalid username/password`)
 
       const [liveRows, vodRows, seriesRows] = await Promise.all([
         fetchAction(creds, 'get_live_streams', signal),
@@ -283,7 +305,7 @@ export async function ingestXtream(
         .filter((c): c is Channel => Boolean(c))
 
       const channels = [...live, ...vod, ...series]
-      if (!channels.length) throw new Error('Xtream returned no streams')
+      if (!channels.length) throw new Error(`${label} returned no streams`)
 
       const archiveCount = live.filter((c) => c.catchup).length
       return {
@@ -291,7 +313,7 @@ export async function ingestXtream(
         source: sourceBase,
         channels,
         usedDemoFallback: false,
-        message: `Imported ${live.length} live (${archiveCount} with catch-up), ${vod.length} VOD, ${series.length} series.`,
+        message: `Imported ${live.length} live (${archiveCount} with catch-up), ${vod.length} VOD, ${series.length} series from ${label}.`,
         liveCount: live.length,
         vodCount: vod.length,
         seriesCount: series.length,
@@ -303,7 +325,7 @@ export async function ingestXtream(
   }
 
   try {
-    return await withTimeout(run(), timeoutMs + 500, 'Xtream ingest')
+    return await withTimeout(run(), timeoutMs + 500, `${label} ingest`)
   } catch (err) {
     if (!demoOnFailure) throw err
     return {
@@ -311,7 +333,7 @@ export async function ingestXtream(
       source: { ...DEMO_SOURCE, createdAt: Date.now() },
       channels: DEMO_CHANNELS,
       usedDemoFallback: true,
-      message: `Xtream unavailable (${formatXtreamError(err)}). Loaded demo pack instead.`,
+      message: `${label} unavailable (${formatXtreamError(err)}). Loaded demo pack instead.`,
       liveCount: DEMO_CHANNELS.filter((c) => c.kind === 'live').length,
       vodCount: DEMO_CHANNELS.filter((c) => c.kind === 'movie').length,
       seriesCount: DEMO_CHANNELS.filter((c) => c.kind === 'series').length,
@@ -319,8 +341,12 @@ export async function ingestXtream(
   }
 }
 
-/** Demo catchup stub: replay the channel URL with a documented timeshift offset. */
-export function buildDemoCatchupStub(channel: Channel, minutesAgo: number): CatchupPlayback {
+/** Demo / unavailable-archive stub: documented timeshift offset marker. */
+export function buildDemoCatchupStub(
+  channel: Channel,
+  minutesAgo: number,
+  provider: PanelProvider = 'megaott',
+): CatchupPlayback {
   if (!channel.catchup) {
     return {
       url: channel.url,
@@ -329,11 +355,12 @@ export function buildDemoCatchupStub(channel: Channel, minutesAgo: number): Catc
       mode: 'unsupported',
     }
   }
+  const label = providerDisplayName(provider)
   // Public demo HLS has no real archive — surface a clear stub URL marker for UI/docs.
   const stub = `${channel.url}${channel.url.includes('?') ? '&' : '?'}aether_catchup=${minutesAgo}m`
   return {
     url: stub,
-    label: `Timeshift stub · ${minutesAgo} min (demo streams have no archive)`,
+    label: `Timeshift stub · ${minutesAgo} min (${label} archive unavailable on this stream)`,
     supported: true,
     mode: 'demo_stub',
   }
@@ -341,7 +368,7 @@ export function buildDemoCatchupStub(channel: Channel, minutesAgo: number): Catc
 
 /**
  * Resolve catch-up playback URL.
- * Prefer real Xtream timeshift.php when the active source has panel credentials
+ * Prefer real timeshift.php when a MegaOTT / Xtream-compatible source has credentials
  * and the channel advertises archive; otherwise use the demo stub.
  */
 export function resolveCatchupPlayback(
@@ -360,17 +387,9 @@ export function resolveCatchupPlayback(
 
   const streamId =
     channel.streamId ||
-    (channel.id.startsWith('xtream_')
-      ? channel.id.replace(/^xtream_(?:live|movie|series)_/, '')
-      : null)
+    (channel.id.match(/^(?:xtream|megaott)_(?:live|movie|series)_(.+)$/)?.[1] ?? null)
 
-  if (
-    source?.type === 'xtream' &&
-    source.url &&
-    source.username &&
-    source.password &&
-    streamId
-  ) {
+  if (isPanelSource(source) && source.url && source.username && source.password && streamId) {
     const startUnix = Math.floor(Date.now() / 1000) - minutesAgo * 60
     const durationSec = Math.max(60, minutesAgo * 60)
     const url = buildXtreamCatchupUrl(
@@ -379,15 +398,18 @@ export function resolveCatchupPlayback(
       startUnix,
       durationSec,
     )
+    const label = providerDisplayName(source.type === 'megaott' ? 'megaott' : 'xtream')
     return {
       url,
-      label: `Xtream timeshift · ${minutesAgo} min ago`,
+      label: `${label} timeshift · ${minutesAgo} min ago`,
       supported: true,
       mode: 'xtream',
     }
   }
 
-  return buildDemoCatchupStub(channel, minutesAgo)
+  const stubProvider: PanelProvider =
+    source?.type === 'xtream' ? 'xtream' : 'megaott'
+  return buildDemoCatchupStub(channel, minutesAgo, stubProvider)
 }
 
 export function xtreamDemoEpg() {

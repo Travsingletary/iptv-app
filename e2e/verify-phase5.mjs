@@ -1,5 +1,5 @@
 /**
- * Phase 5 runtime verification: Xtream demo fallback, catchup affordance,
+ * Phase 5 runtime verification: MegaOTT demo fallback, catchup affordance,
  * multi-view mosaic, TV focus rings.
  */
 import { createRequire } from 'node:module'
@@ -49,22 +49,25 @@ try {
     await page.waitForTimeout(800)
   }
 
-  // Xtream form + demo fallback
+  // MegaOTT form + demo fallback (Xtream-compatible client)
   await page.getByRole('button', { name: 'Settings' }).click()
   await page.waitForTimeout(500)
   const body = await page.locator('body').innerText()
-  note(`xtream section: ${/Xtream Codes login/i.test(body)}`)
-  if (!/Xtream Codes login/i.test(body)) throw new Error('Xtream UI missing')
+  note(`megaott section: ${/MegaOTT/i.test(body)}`)
+  if (!/MegaOTT/i.test(body)) throw new Error('MegaOTT UI missing')
+  note(`xtream advanced: ${/Xtream-compatible API/i.test(body)}`)
 
-  await page.getByPlaceholder('http://host:port').fill('http://127.0.0.1:59999')
-  await page.locator('label:has-text("Username") input').fill('demo')
-  await page.locator('label:has-text("Password") input').fill('demo')
-  await page.getByRole('button', { name: /Connect Xtream/i }).click()
+  await page.getByTestId('megaott-portal').fill('http://127.0.0.1:59999')
+  await page.getByTestId('megaott-username').fill('demo')
+  await page.getByTestId('megaott-password').fill('demo')
+  await page.getByRole('button', { name: /Connect MegaOTT/i }).click()
   await page.waitForSelector('[data-testid="xtream-status"]', { timeout: 10_000 })
   const statusText = await page.getByTestId('xtream-status').innerText()
-  note(`xtream status: ${statusText}`)
-  note(`xtream demo fallback: ${/demo pack/i.test(statusText)}`)
-  if (!/demo pack/i.test(statusText)) throw new Error('Expected demo fallback message')
+  note(`megaott status: ${statusText}`)
+  note(`megaott demo fallback: ${/demo pack/i.test(statusText)}`)
+  if (!/MegaOTT unavailable/i.test(statusText) || !/demo pack/i.test(statusText)) {
+    throw new Error('Expected MegaOTT demo fallback message')
+  }
   await page.screenshot({ path: path.join(outDir, 'phase5_xtream_fallback.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // Catchup on Arena Sports (catchup:true) — click UI (avoid Vite dual-module store imports)

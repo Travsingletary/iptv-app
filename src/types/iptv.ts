@@ -17,7 +17,7 @@ export interface Channel {
   year?: number
   rating?: string
   description?: string
-  /** Provider stream id (Xtream) for timeshift URLs. */
+  /** Provider stream id (MegaOTT / Xtream) for timeshift URLs. */
   streamId?: string
   /** Hours of archive when panel advertises tv_archive_duration. */
   archiveDurationHours?: number
@@ -36,7 +36,7 @@ export interface EpgProgram {
 export interface PlaylistSource {
   id: string
   name: string
-  type: 'demo' | 'm3u' | 'xtream'
+  type: 'demo' | 'm3u' | 'xtream' | 'megaott'
   url?: string
   username?: string
   password?: string

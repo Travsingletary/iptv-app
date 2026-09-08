@@ -74,7 +74,9 @@ try {
   const settings = await page.locator('body').innerText()
   note(`auth demo state: ${/Auth disabled/i.test(settings)}`)
   note(`ai mode section: ${/Mock AI|Live AI|Assistant AI/i.test(settings)}`)
-  note(`xtream fields docs: ${/tv_archive|Server URL|player_api/i.test(settings)}`)
+  note(`megaott fields docs: ${/MegaOTT|tv_archive|Portal|player_api/i.test(settings)}`)
+  if (!/MegaOTT/i.test(settings)) throw new Error('Expected MegaOTT settings section')
+  note(`xtream advanced: ${/Xtream-compatible API/i.test(settings)}`)
   if (!(await page.getByTestId('auth-demo-state').count())) {
     throw new Error('Expected auth-demo-state without Supabase env')
   }

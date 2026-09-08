@@ -214,7 +214,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
                 ) : (
                   <span
                     className="rounded-full border border-white/10 px-3 py-2 text-xs text-mist-400"
-                    title="This stream does not advertise catch-up. Xtream panels with tv_archive=1 enable timeshift URLs."
+                    title="This stream does not advertise catch-up. MegaOTT / Xtream-compatible panels with tv_archive=1 enable timeshift URLs."
                   >
                     No catch-up
                   </span>
