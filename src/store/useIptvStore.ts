@@ -415,13 +415,14 @@ export const useIptvStore = create<IptvState>()(
           epgUrl,
           createdAt: Date.now(),
         }
+        const stayOnSettings = get().view === 'settings'
         set({
           sources: [...get().sources.filter((s) => s.type !== 'demo'), source],
           activeSourceId: source.id,
           channels: parsed,
           epg: [],
           onboarded: true,
-          view: 'home',
+          view: stayOnSettings ? 'settings' : 'home',
           player: { ...defaultPlayer },
         })
       },
@@ -440,13 +441,14 @@ export const useIptvStore = create<IptvState>()(
           epgUrl,
           createdAt: Date.now(),
         }
+        const stayOnSettings = get().view === 'settings'
         set({
           sources: [...get().sources.filter((s) => s.type !== 'demo'), source],
           activeSourceId: source.id,
           channels: parsed,
           epg: [],
           onboarded: true,
-          view: 'home',
+          view: stayOnSettings ? 'settings' : 'home',
           player: { ...defaultPlayer },
         })
       },
