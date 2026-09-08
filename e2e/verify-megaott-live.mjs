@@ -129,6 +129,32 @@ try {
   note(`status: ${report.status}`)
   note(`authOk=${report.authOk} demoFallback=${report.usedDemoFallback}`)
 
+  // Disable auto-fallback automation — panel max_connections is often 1
+  await page.evaluate(() => {
+    try {
+      const raw = localStorage.getItem('aether_automation_rules_v1')
+      const rules = raw ? JSON.parse(raw) : []
+      const next = (Array.isArray(rules) ? rules : []).map((r) =>
+        r && (r.kind === 'stream_error_auto_fallback' || r.id === 'rule_error_auto_fallback')
+          ? { ...r, enabled: false }
+          : r,
+      )
+      if (next.length) localStorage.setItem('aether_automation_rules_v1', JSON.stringify(next))
+      else {
+        localStorage.setItem(
+          'aether_automation_rules_v1',
+          JSON.stringify([
+            { id: 'rule_error_auto_fallback', kind: 'stream_error_auto_fallback', enabled: false },
+            { id: 'rule_buffering_fallback', kind: 'buffering_fallback_suggest', enabled: false },
+          ]),
+        )
+      }
+    } catch {
+      /* ignore */
+    }
+  })
+
+
   await page.screenshot({
     path: path.join(outDir, 'megaott_live_connect_status.png'),
   })

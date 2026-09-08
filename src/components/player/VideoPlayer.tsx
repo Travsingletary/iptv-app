@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import Hls from 'hls.js'
+import mpegts from 'mpegts.js'
 import { useIptvStore } from '../../store/useIptvStore'
 import { trackEvent } from '../../lib/eventLogger'
 
@@ -13,6 +14,15 @@ interface VideoPlayerProps {
   mutedOverride?: boolean
 }
 
+function isMpegTsUrl(url: string): boolean {
+  try {
+    const path = new URL(url, 'http://local').pathname.toLowerCase()
+    return path.endsWith('.ts') && !path.endsWith('.m3u8')
+  } catch {
+    return /\.ts($|\?)/i.test(url) && !/\.m3u8/i.test(url)
+  }
+}
+
 export function VideoPlayer({
   className = '',
   onReady,
@@ -22,6 +32,7 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
+  const mpegtsRef = useRef<mpegts.Player | null>(null)
   const playStartedRef = useRef(false)
   const storeChannelId = useIptvStore((s) => s.player.channelId)
   const channelId = channelIdOverride ?? storeChannelId
@@ -89,7 +100,33 @@ export function VideoPlayer({
     video.addEventListener('error', onError)
     video.addEventListener('ended', onEnded)
 
-    if (Hls.isSupported()) {
+    const useMpegTs = isMpegTsUrl(streamUrl) && mpegts.getFeatureList().mseLivePlayback
+
+    if (useMpegTs) {
+      const player = mpegts.createPlayer(
+        {
+          type: 'mse',
+          isLive: true,
+          url: streamUrl,
+        },
+        {
+          enableWorker: true,
+          stashInitialSize: 128,
+          liveBufferLatencyChasing: true,
+        },
+      )
+      mpegtsRef.current = player
+      player.attachMediaElement(video)
+      player.load()
+      player.on(mpegts.Events.ERROR, () => {
+        if (!destroyed && !silent) {
+          setStreamError('Stream error. Try another channel.')
+        }
+      })
+      void video.play().catch(() => {
+        if (!silent) setPlayer({ paused: true, buffering: false })
+      })
+    } else if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
@@ -127,6 +164,14 @@ export function VideoPlayer({
       if (hlsRef.current) {
         hlsRef.current.destroy()
         hlsRef.current = null
+      }
+      if (mpegtsRef.current) {
+        try {
+          mpegtsRef.current.destroy()
+        } catch {
+          /* ignore */
+        }
+        mpegtsRef.current = null
       }
       video.removeAttribute('src')
       video.load()

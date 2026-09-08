@@ -130,7 +130,9 @@ function mapRow(
 ): Channel | null {
   const streamId = rowStreamId(row, kind)
   if (streamId == null || !row.name) return null
-  const ext = row.container_extension || 'm3u8'
+  const ext =
+    row.container_extension ||
+    (kind === 'live' ? 'ts' : 'm3u8')
   const streamKind = kind === 'live' ? 'live' : kind === 'series' ? 'series' : 'movie'
   const archiveHours = Number(row.tv_archive_duration)
   const provider = resolveProvider(creds)
