@@ -10,7 +10,12 @@ import {
   type AuthSnapshot,
 } from '../lib/supabaseAuth'
 import { probeAiModeStatus, type AiModeStatus } from '../lib/aiMode'
-import { normalizePortalBase, parsePanelOrPlaylistUrl } from '../lib/panelCredentials'
+import {
+  isWebsiteAccountUrl,
+  normalizePortalBase,
+  parsePanelOrPlaylistUrl,
+  WEBSITE_ACCOUNT_URL_HINT,
+} from '../lib/panelCredentials'
 
 
 function AuthSection() {
@@ -421,6 +426,10 @@ export function SettingsPage() {
   }
 
   const connectPanel = async (provider: 'megaott' | 'xtream') => {
+    if (isWebsiteAccountUrl(portalUrl)) {
+      setStatus(WEBSITE_ACCOUNT_URL_HINT)
+      return
+    }
     setBusy(true)
     setStatus(null)
     try {
@@ -460,6 +469,8 @@ export function SettingsPage() {
           ? 'Credentials filled from playlist URL — click Connect MegaOTT (or Import M3U URL if the browser can fetch it).'
           : 'Credentials filled — click Connect MegaOTT.',
       )
+    } else if (isWebsiteAccountUrl(playlistLink)) {
+      setStatus(parsed.hint)
     } else if (normalizePortalBase(playlistLink)) {
       setPortalUrl(normalizePortalBase(playlistLink))
       setStatus('Portal host filled — enter username and password from your MegaOTT email or app.')
@@ -576,11 +587,14 @@ export function SettingsPage() {
         <div>
           <h2 className="font-display text-lg font-semibold">MegaOTT</h2>
           <p className="mt-1 text-sm text-mist-300">
-            Connect with the portal URL, username, and password from your MegaOTT welcome email or
-            app (often labeled DNS / Server / Portal). MegaOTT panels speak the Xtream-compatible{' '}
-            <span className="font-mono text-xs">player_api.php</span> dialect — Aether reuses that
-            client. Channels with <span className="font-mono text-xs">tv_archive=1</span> unlock real
-            catch-up; otherwise you get a clear MegaOTT archive stub. On failure the demo pack loads.
+            Use the streaming DNS / Server / Portal host from your MegaOTT welcome email, WhatsApp,
+            or player app — usually <span className="font-mono text-xs">http://host:port</span> —
+            plus username and password. Do not paste the website account page (for example{' '}
+            <span className="font-mono text-xs">https://megaott.net/login</span>); that is not the
+            IPTV API. MegaOTT panels speak Xtream-compatible{' '}
+            <span className="font-mono text-xs">player_api.php</span>. Channels with{' '}
+            <span className="font-mono text-xs">tv_archive=1</span> unlock real catch-up; otherwise
+            you get a MegaOTT archive stub. On failure the demo pack loads.
           </p>
         </div>
         <form onSubmit={onMegaOttConnect} className="space-y-3">

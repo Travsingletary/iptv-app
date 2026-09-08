@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   buildGetPhpPlaylistUrl,
   detectPanelProvider,
+  isWebsiteAccountUrl,
   normalizePortalBase,
   parsePanelOrPlaylistUrl,
   providerDisplayName,
+  WEBSITE_ACCOUNT_URL_HINT,
 } from './panelCredentials'
 
 describe('panelCredentials', () => {
@@ -66,6 +68,22 @@ describe('panelCredentials', () => {
     const parsed = parsePanelOrPlaylistUrl('http://portal.megaott.net:25461', 'megaott')
     expect(parsed.credentials).toBeNull()
     expect(parsed.hint).toMatch(/username and password/i)
+  })
+
+  it('rejects website account URLs such as megaott.net/login', () => {
+    expect(isWebsiteAccountUrl('https://megaott.net/login')).toBe(true)
+    expect(isWebsiteAccountUrl('https://www.megaott.net/')).toBe(true)
+    expect(isWebsiteAccountUrl('http://portal.megaott.net:25461')).toBe(false)
+    expect(
+      isWebsiteAccountUrl(
+        'http://cdn.megaott.tv:8080/get.php?username=u&password=p&type=m3u_plus',
+      ),
+    ).toBe(false)
+
+    const parsed = parsePanelOrPlaylistUrl('https://megaott.net/login', 'megaott')
+    expect(parsed.credentials).toBeNull()
+    expect(parsed.hint).toBe(WEBSITE_ACCOUNT_URL_HINT)
+    expect(normalizePortalBase('https://megaott.net/login')).toBe('')
   })
 
   it('builds get.php playlist URL', () => {

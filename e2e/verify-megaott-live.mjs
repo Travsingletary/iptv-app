@@ -185,22 +185,20 @@ try {
     throw new Error('Expected live channels > 0')
   }
 
-  // Tune a live channel
+  // Tune a live channel — Live TV auto-plays first channel; click archive if known
   await page.getByRole('button', { name: 'Live TV' }).click()
-  await page.waitForTimeout(800)
+  await page.waitForTimeout(1200)
 
-  // Prefer an archive-capable channel if listed; else first visible channel button
-  const targetName = counts.archiveSample?.name || counts.sample?.name
+  const targetName = counts.archiveSample?.name || counts.sample?.name || null
   report.tunedChannel = targetName
-  note(`tuning: ${targetName}`)
+  note(`tuning: ${targetName || '(auto first live)'}`)
 
-  const channelBtn = page.getByRole('button', { name: new RegExp(targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first()
-  if (await channelBtn.count()) {
-    await channelBtn.click()
-  } else {
-    // Fallback: click first channel row in live list
-    const any = page.locator('[data-testid="channel-row"], button').filter({ hasText: /\|/ }).first()
-    await any.click()
+  if (targetName) {
+    const escaped = targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const channelBtn = page.getByRole('button', { name: new RegExp(escaped, 'i') }).first()
+    if (await channelBtn.count()) {
+      await channelBtn.click()
+    }
   }
   await page.waitForTimeout(2500)
 
