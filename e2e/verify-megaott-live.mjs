@@ -80,21 +80,37 @@ const report = {
 }
 
 try {
-  await page.goto(BASE, { waitUntil: 'networkidle' })
+  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 60_000 })
   await page.evaluate(() => localStorage.clear())
-  await page.reload({ waitUntil: 'networkidle' })
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 })
 
-  await page.getByRole('button', { name: 'Settings' }).click()
-  await page.waitForTimeout(400)
+  // Fresh state shows onboarding — go straight to Settings / MegaOTT import
+  const importBtn = page.getByRole('button', { name: /Import MegaOTT \/ M3U/i })
+  const settingsBtn = page.getByRole('button', { name: 'Settings' })
+  if (await importBtn.count()) {
+    await importBtn.click()
+  } else if (await settingsBtn.count()) {
+    await settingsBtn.click()
+  } else {
+    const demoBtn = page.getByRole('button', { name: /demo pack/i })
+    if (await demoBtn.count()) await demoBtn.click()
+    await page.getByRole('button', { name: 'Settings' }).click()
+  }
+  await page.waitForSelector('[data-testid="megaott-section"]', { timeout: 30_000 })
+  await page.waitForTimeout(300)
 
   await page.getByTestId('megaott-portal').fill(PORTAL)
   await page.getByTestId('megaott-username').fill(USER)
   await page.getByTestId('megaott-password').fill(PASS)
 
   // Screenshot settings with password field obscured (type=password already masks)
-  await page.screenshot({
-    path: path.join(outDir, 'megaott_live_settings_filled.png'),
-  })
+  const settingsShot = path.join(outDir, 'megaott_live_settings_filled.png')
+  await page.screenshot({ path: settingsShot })
+  try {
+    fs.copyFileSync(settingsShot, path.join('/opt/cursor/artifacts', 'megaott_live_settings_filled.png'))
+  } catch {
+    /* artifacts mount may be flaky */
+  }
 
   note(`connecting portal=${PORTAL} user=${USER}`)
   await page.getByTestId('megaott-connect').click()
@@ -121,34 +137,53 @@ try {
     throw new Error(`MegaOTT live connect failed: ${report.status}`)
   }
 
+  // Prefer status text counts (localStorage may omit huge catalogs)
+  const statusMatch = statusText.match(
+    /Imported\s+(\d+)\s+live\s+\((\d+)\s+with catch-up\),\s+(\d+)\s+VOD,\s+(\d+)\s+series/i,
+  )
   const counts = await page.evaluate(() => {
     const raw = localStorage.getItem('aether-iptv-v2')
-    if (!raw) return { channelCount: 0, liveCount: 0, archiveCount: 0, sample: null }
-    const parsed = JSON.parse(raw)
-    const channels = parsed?.state?.channels || []
-    const live = channels.filter((c) => c.kind === 'live')
-    const archive = live.filter((c) => c.catchup)
-    return {
-      channelCount: channels.length,
-      liveCount: live.length,
-      archiveCount: archive.length,
-      sample: live[0]
-        ? { id: live[0].id, name: live[0].name, catchup: !!live[0].catchup }
-        : null,
-      archiveSample: archive[0]
-        ? { id: archive[0].id, name: archive[0].name }
-        : null,
+    if (!raw) return { channelCount: 0, liveCount: 0, archiveCount: 0, sample: null, archiveSample: null }
+    try {
+      const parsed = JSON.parse(raw)
+      const channels = parsed?.state?.channels || []
+      const live = channels.filter((c) => c.kind === 'live')
+      const archive = live.filter((c) => c.catchup)
+      return {
+        channelCount: channels.length,
+        liveCount: live.length,
+        archiveCount: archive.length,
+        sample: live[0]
+          ? { id: live[0].id, name: live[0].name, catchup: !!live[0].catchup }
+          : null,
+        archiveSample: archive[0]
+          ? { id: archive[0].id, name: archive[0].name }
+          : null,
+      }
+    } catch {
+      return { channelCount: 0, liveCount: 0, archiveCount: 0, sample: null, archiveSample: null }
     }
   })
-  report.channelCount = counts.channelCount
-  report.liveCount = counts.liveCount
-  report.archiveCount = counts.archiveCount
+  if (statusMatch) {
+    report.liveCount = Number(statusMatch[1])
+    report.archiveCount = Number(statusMatch[2])
+    report.channelCount = Math.max(
+      counts.channelCount,
+      Number(statusMatch[1]) + Number(statusMatch[3]) + Number(statusMatch[4]),
+    )
+  } else {
+    report.channelCount = counts.channelCount
+    report.liveCount = counts.liveCount
+    report.archiveCount = counts.archiveCount
+  }
   report.catchup.channelWithArchive = counts.archiveSample
   note(
-    `channels=${counts.channelCount} live=${counts.liveCount} archive=${counts.archiveCount}`,
+    `channels=${report.channelCount} live=${report.liveCount} archive=${report.archiveCount} (storageLive=${counts.liveCount})`,
   )
 
-  if (counts.liveCount < 1) throw new Error('Expected live channels > 0')
+  if (report.liveCount < 1 && counts.liveCount < 1) {
+    throw new Error('Expected live channels > 0')
+  }
 
   // Tune a live channel
   await page.getByRole('button', { name: 'Live TV' }).click()

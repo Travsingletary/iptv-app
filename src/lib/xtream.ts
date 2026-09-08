@@ -297,24 +297,39 @@ export async function ingestXtream(
         .filter((c): c is Channel => Boolean(c))
       if (!live.length) throw new Error(`${label} returned no live streams`)
 
-      let vodRows: XtreamStreamRow[] = []
-      let seriesRows: XtreamStreamRow[] = []
+      // Browser memory / localStorage choke on 50k+ VOD rows. Prefer live when the
+      // live catalog is already large; still try a capped VOD/series pull otherwise.
+      const LARGE_LIVE_THRESHOLD = 2_000
+      const MAX_VOD_SERIES_ROWS = 3_000
+      let vod: Channel[] = []
+      let series: Channel[] = []
       let catalogNote = ''
-      try {
-        ;[vodRows, seriesRows] = await Promise.all([
-          fetchAction(creds, 'get_vod_streams', signal),
-          fetchAction(creds, 'get_series', signal),
-        ])
-      } catch (catalogErr) {
-        catalogNote = ` VOD/series skipped (${formatXtreamError(catalogErr)}).`
+      if (live.length >= LARGE_LIVE_THRESHOLD) {
+        catalogNote =
+          ' VOD/series deferred (large live catalog — reconnect later or use M3U for on-demand).'
+      } else {
+        try {
+          const [vodRows, seriesRows] = await Promise.all([
+            fetchAction(creds, 'get_vod_streams', signal),
+            fetchAction(creds, 'get_series', signal),
+          ])
+          const vodMapped = vodRows
+            .slice(0, MAX_VOD_SERIES_ROWS)
+            .map((row) => mapRow(row, creds, 'movie', 'VOD'))
+            .filter((c): c is Channel => Boolean(c))
+          const seriesMapped = seriesRows
+            .slice(0, MAX_VOD_SERIES_ROWS)
+            .map((row) => mapRow(row, creds, 'series', 'Series'))
+            .filter((c): c is Channel => Boolean(c))
+          vod = vodMapped
+          series = seriesMapped
+          if (vodRows.length > MAX_VOD_SERIES_ROWS || seriesRows.length > MAX_VOD_SERIES_ROWS) {
+            catalogNote = ` VOD/series capped at ${MAX_VOD_SERIES_ROWS} each for browser performance.`
+          }
+        } catch (catalogErr) {
+          catalogNote = ` VOD/series skipped (${formatXtreamError(catalogErr)}).`
+        }
       }
-
-      const vod = vodRows
-        .map((row) => mapRow(row, creds, 'movie', 'VOD'))
-        .filter((c): c is Channel => Boolean(c))
-      const series = seriesRows
-        .map((row) => mapRow(row, creds, 'series', 'Series'))
-        .filter((c): c is Channel => Boolean(c))
 
       const channels = [...live, ...vod, ...series]
       const archiveCount = live.filter((c) => c.catchup).length
