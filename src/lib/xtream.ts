@@ -249,7 +249,8 @@ export async function ingestXtream(
   options: { signal?: AbortSignal; demoOnFailure?: boolean; timeoutMs?: number } = {},
 ): Promise<XtreamIngestResult> {
   const demoOnFailure = options.demoOnFailure !== false
-  const timeoutMs = options.timeoutMs ?? 4_000
+  // Large MegaOTT panels (tens of thousands of VOD/series rows) need a long window.
+  const timeoutMs = options.timeoutMs ?? 90_000
   const provider = resolveProvider(creds)
   const label = providerDisplayName(provider)
 
@@ -288,15 +289,26 @@ export async function ingestXtream(
       const ok = await authenticate(creds, signal)
       if (!ok) throw new Error(`${label} authentication failed — invalid username/password`)
 
-      const [liveRows, vodRows, seriesRows] = await Promise.all([
-        fetchAction(creds, 'get_live_streams', signal),
-        fetchAction(creds, 'get_vod_streams', signal),
-        fetchAction(creds, 'get_series', signal),
-      ])
-
+      // Live is required for a successful connect. VOD/series are best-effort so a
+      // huge catalog or slow panel still yields watchable live channels.
+      const liveRows = await fetchAction(creds, 'get_live_streams', signal)
       const live = liveRows
         .map((row) => mapRow(row, creds, 'live', 'Live'))
         .filter((c): c is Channel => Boolean(c))
+      if (!live.length) throw new Error(`${label} returned no live streams`)
+
+      let vodRows: XtreamStreamRow[] = []
+      let seriesRows: XtreamStreamRow[] = []
+      let catalogNote = ''
+      try {
+        ;[vodRows, seriesRows] = await Promise.all([
+          fetchAction(creds, 'get_vod_streams', signal),
+          fetchAction(creds, 'get_series', signal),
+        ])
+      } catch (catalogErr) {
+        catalogNote = ` VOD/series skipped (${formatXtreamError(catalogErr)}).`
+      }
+
       const vod = vodRows
         .map((row) => mapRow(row, creds, 'movie', 'VOD'))
         .filter((c): c is Channel => Boolean(c))
@@ -305,15 +317,13 @@ export async function ingestXtream(
         .filter((c): c is Channel => Boolean(c))
 
       const channels = [...live, ...vod, ...series]
-      if (!channels.length) throw new Error(`${label} returned no streams`)
-
       const archiveCount = live.filter((c) => c.catchup).length
       return {
         ok: true,
         source: sourceBase,
         channels,
         usedDemoFallback: false,
-        message: `Imported ${live.length} live (${archiveCount} with catch-up), ${vod.length} VOD, ${series.length} series from ${label}.`,
+        message: `Imported ${live.length} live (${archiveCount} with catch-up), ${vod.length} VOD, ${series.length} series from ${label}.${catalogNote}`,
         liveCount: live.length,
         vodCount: vod.length,
         seriesCount: series.length,
@@ -325,7 +335,7 @@ export async function ingestXtream(
   }
 
   try {
-    return await withTimeout(run(), timeoutMs + 500, `${label} ingest`)
+    return await withTimeout(run(), timeoutMs + 5_000, `${label} ingest`)
   } catch (err) {
     if (!demoOnFailure) throw err
     return {

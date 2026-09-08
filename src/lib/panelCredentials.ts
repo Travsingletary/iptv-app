@@ -5,6 +5,7 @@
  * - get.php?username=&password=&type=m3u_plus
  * - player_api.php?username=&password=
  * - /live/user/pass/... path style (credentials only; host is still needed)
+ * - meza.in/<panel-host> Samsung/LG DNS rewriter unwrap
  */
 
 export type PanelProvider = 'megaott' | 'xtream'
@@ -38,9 +39,13 @@ export function providerDisplayName(provider: PanelProvider): string {
   return provider === 'megaott' ? 'MegaOTT' : 'Xtream'
 }
 
+/** Samsung/LG-style DNS rewriters that wrap the real panel host in a path. */
+const PANEL_DNS_REWRITERS = new Set(['meza.in', 'www.meza.in'])
+
 /**
  * Normalize a portal host to an origin (scheme + host + optional port).
  * Strips get.php / player_api.php / live|movie|series path segments.
+ * Unwraps meza.in/<panel-host> rewriter URLs to the real panel origin.
  */
 export function normalizePortalBase(input: string): string {
   let raw = input.trim()
@@ -49,6 +54,14 @@ export function normalizePortalBase(input: string): string {
 
   try {
     const u = new URL(raw)
+    const hostKey = u.hostname.toLowerCase()
+    if (PANEL_DNS_REWRITERS.has(hostKey)) {
+      const inner = u.pathname.replace(/^\/+/, '').split('/')[0] ?? ''
+      if (inner && /\./.test(inner) && !/\.(php|m3u8?)$/i.test(inner)) {
+        const scheme = u.protocol === 'https:' ? 'https' : 'http'
+        return normalizePortalBase(`${scheme}://${inner}`)
+      }
+    }
     // Drop credential-bearing path endpoints back to origin
     const path = u.pathname.replace(/\/+$/, '')
     if (

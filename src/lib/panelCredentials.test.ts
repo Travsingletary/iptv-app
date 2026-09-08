@@ -26,6 +26,15 @@ describe('panelCredentials', () => {
     expect(normalizePortalBase('host.example:8080')).toBe('http://host.example:8080')
   })
 
+  it('unwraps meza.in Samsung/LG DNS rewriter paths to the real panel host', () => {
+    expect(normalizePortalBase('http://meza.in/iranksxt.fhvpnw.com')).toBe(
+      'http://iranksxt.fhvpnw.com',
+    )
+    expect(normalizePortalBase('http://meza.in/panel.example:8080')).toBe(
+      'http://panel.example:8080',
+    )
+  })
+
   it('extracts credentials from get.php playlist URLs without echoing secrets in hint', () => {
     const parsed = parsePanelOrPlaylistUrl(
       'http://cdn.megaott.tv:8080/get.php?username=alice&password=s3cret&type=m3u_plus&output=ts',
