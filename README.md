@@ -85,7 +85,7 @@ Without AI keys the deterministic mock agent still runs (Settings shows **Mock A
 
 | Field | Required | Notes |
 | --- | --- | --- |
-| Portal / server URL | Yes | Panel base from MegaOTT email/app (`http://host:port`) |
+| Portal / server URL | Yes | Streaming DNS/Server from MegaOTT email/app (`http://host:port`). Not the website login (`https://megaott.net/login`). |
 | Username | Yes | MegaOTT username |
 | Password | Yes | MegaOTT password |
 | Playlist / get.php URL | Optional | Paste full M3U link to auto-fill credentials or ingest |

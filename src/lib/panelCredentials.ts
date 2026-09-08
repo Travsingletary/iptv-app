@@ -5,6 +5,8 @@
  * - get.php?username=&password=&type=m3u_plus
  * - player_api.php?username=&password=
  * - /live/user/pass/... path style (credentials only; host is still needed)
+ *
+ * Website account pages (e.g. https://megaott.net/login) are not streaming hosts.
  */
 
 export type PanelProvider = 'megaott' | 'xtream'
@@ -24,8 +26,48 @@ export interface ParsedPanelInput {
   hint: string
 }
 
+/** User-facing copy when someone pastes a website account URL instead of a panel host. */
+export const WEBSITE_ACCOUNT_URL_HINT =
+  'That looks like a MegaOTT website login/account page — not the streaming DNS/Server host. Use http://host:port from your welcome email/app, or a full get.php M3U link.'
+
 function stripTrailingSlash(s: string): string {
   return s.replace(/\/$/, '')
+}
+
+function withHttpScheme(raw: string): string {
+  return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`
+}
+
+/**
+ * True for customer-website account URLs (login/forgot-password) and the
+ * default megaott.net marketing/account host — not Xtream panel origins.
+ * Panel hosts like portal.megaott.net:25461 or get.php links are allowed.
+ */
+export function isWebsiteAccountUrl(input: string): boolean {
+  const trimmed = input.trim()
+  if (!trimmed) return false
+  try {
+    const u = new URL(withHttpScheme(trimmed))
+    const path = u.pathname.toLowerCase().replace(/\/+$/, '') || '/'
+    if (
+      /\/(login|signin|sign-in|sign-up|signup|forgot-password|register|password\/reset)(\/|$)/.test(
+        `${path}/`,
+      )
+    ) {
+      return true
+    }
+    const host = u.hostname.toLowerCase()
+    const isAccountHost = host === 'megaott.net' || host === 'www.megaott.net'
+    const hasPanelPort = Boolean(u.port) && u.port !== '80' && u.port !== '443'
+    const hasApiPath =
+      /\/(get\.php|player_api\.php)$/i.test(path) ||
+      /\/(live|movie|series)\//i.test(path) ||
+      /\.m3u8?$/i.test(path)
+    if (isAccountHost && !hasPanelPort && !hasApiPath) return true
+    return false
+  } catch {
+    return false
+  }
 }
 
 export function detectPanelProvider(serverOrUrl: string, hint?: string): PanelProvider {
@@ -43,12 +85,12 @@ export function providerDisplayName(provider: PanelProvider): string {
  * Strips get.php / player_api.php / live|movie|series path segments.
  */
 export function normalizePortalBase(input: string): string {
-  let raw = input.trim()
+  const raw = input.trim()
   if (!raw) return ''
-  if (!/^https?:\/\//i.test(raw)) raw = `http://${raw}`
+  if (isWebsiteAccountUrl(raw)) return ''
 
   try {
-    const u = new URL(raw)
+    const u = new URL(withHttpScheme(raw))
     // Drop credential-bearing path endpoints back to origin
     const path = u.pathname.replace(/\/+$/, '')
     if (
@@ -86,10 +128,17 @@ export function parsePanelOrPlaylistUrl(
     return { credentials: null, isPlaylistUrl: false, hint: 'Paste a portal or playlist URL' }
   }
 
+  if (isWebsiteAccountUrl(trimmed)) {
+    return {
+      credentials: null,
+      isPlaylistUrl: false,
+      hint: WEBSITE_ACCOUNT_URL_HINT,
+    }
+  }
+
   let url: URL
   try {
-    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`
-    url = new URL(withScheme)
+    url = new URL(withHttpScheme(trimmed))
   } catch {
     return {
       credentials: null,
