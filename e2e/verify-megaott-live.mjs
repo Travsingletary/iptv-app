@@ -211,29 +211,32 @@ try {
     throw new Error('Expected live channels > 0')
   }
 
-  // Tune a live channel — Live TV auto-plays first channel; click archive if known
+  // Tune a live channel — search to avoid scrolling 6k rows; Live auto-plays first
   await page.getByRole('button', { name: 'Live TV' }).click()
-  await page.waitForTimeout(1200)
+  await page.waitForTimeout(800)
 
-  const targetName = counts.archiveSample?.name || counts.sample?.name || null
+  const targetName = counts.archiveSample?.name || counts.sample?.name || 'BRAVO'
   report.tunedChannel = targetName
-  note(`tuning: ${targetName || '(auto first live)'}`)
+  note(`tuning: ${targetName}`)
 
-  if (targetName) {
-    const escaped = targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const channelBtn = page.getByRole('button', { name: new RegExp(escaped, 'i') }).first()
-    if (await channelBtn.count()) {
-      await channelBtn.click()
-    }
+  const search = page.getByPlaceholder('Search channels')
+  if (await search.count()) {
+    await search.fill(String(targetName).split('|').pop()?.trim() || 'BRAVO')
+    await page.waitForTimeout(500)
   }
-  await page.waitForTimeout(2500)
+  const escaped = String(targetName).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const channelBtn = page.getByRole('button', { name: new RegExp(escaped, 'i') }).first()
+  if (await channelBtn.count()) {
+    await channelBtn.click()
+  }
+  await page.waitForTimeout(2000)
 
-  // Probe video element
+  // Probe video element (mpegts live may need longer to paint first frame)
   const playback = await page.evaluate(async () => {
     const video = document.querySelector('video')
     if (!video) return { error: 'no video element' }
     const start = Date.now()
-    while (Date.now() - start < 20000) {
+    while (Date.now() - start < 45000) {
       if (video.readyState >= 2 && video.videoWidth > 0) break
       if (video.error) break
       await new Promise((r) => setTimeout(r, 500))
@@ -246,6 +249,7 @@ try {
       networkState: video.networkState,
       paused: video.paused,
       error: video.error ? String(video.error.message || video.error.code) : null,
+      src: (video.currentSrc || '').replace(/\/\/[^/]+\/live\/[^/]+\/[^/]+\//, '//HOST/live/USER/REDACTED/'),
     }
   })
   report.playback = playback
