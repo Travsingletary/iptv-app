@@ -41,7 +41,10 @@ export function ChannelRail({
               transition={{ delay: Math.min(i * 0.04, 0.35) }}
               whileHover={{ y: -4, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => playChannel(ch.id)}
+              onClick={() => {
+                playChannel(ch.id)
+                useIptvStore.getState().setMenuOpen(false)
+              }}
               className={`group relative shrink-0 overflow-hidden text-left focus-visible:focus-ring ${
                 isPoster
                   ? 'aspect-[2/3] w-[9.5rem] md:w-40'

@@ -203,6 +203,9 @@ export const useIptvStore = create<IptvState>()(
               toChannelId: channelId,
             })
           }
+          // TV-first: tuning updates the always-on canvas without ripping the user
+          // out of Home/Guide/Settings overlays. Callers that need a view change
+          // (e.g. Live list, VOD play) call setView themselves.
           return {
             player: {
               ...s.player,
@@ -219,11 +222,6 @@ export const useIptvStore = create<IptvState>()(
               channelId,
               ...s.recentIds.filter((id) => id !== channelId),
             ].slice(0, 24),
-            view: s.channels.find((c) => c.id === channelId)?.kind === 'live'
-              ? 'live'
-              : s.view === 'vod'
-                ? 'vod'
-                : 'live',
           }
         }),
 
@@ -413,6 +411,7 @@ export const useIptvStore = create<IptvState>()(
           epg: refreshDemoEpg(),
           onboarded: true,
           view: 'home',
+          menuOpen: true,
         }),
 
       importM3UText: (name, text, epgUrl) => {

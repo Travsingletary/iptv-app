@@ -6,6 +6,7 @@ import { nowPlaying } from '../../lib/epg'
 
 export function HeroBanner({ channel }: { channel: Channel }) {
   const playChannel = useIptvStore((s) => s.playChannel)
+  const setMenuOpen = useIptvStore((s) => s.setMenuOpen)
   const toggleFavorite = useIptvStore((s) => s.toggleFavorite)
   const favorites = useIptvStore((s) => s.favorites)
   const epg = useIptvStore((s) => s.epg)
@@ -74,7 +75,10 @@ export function HeroBanner({ channel }: { channel: Channel }) {
         >
           <button
             type="button"
-            onClick={() => playChannel(channel.id)}
+            onClick={() => {
+              playChannel(channel.id)
+              setMenuOpen(false)
+            }}
             className="inline-flex items-center gap-2 rounded-full bg-sand-50 px-5 py-3 text-sm font-semibold text-ink-950 shadow-glow transition hover:bg-white"
           >
             <Play size={16} fill="currentColor" />
