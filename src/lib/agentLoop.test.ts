@@ -52,4 +52,20 @@ describe('agentLoop', () => {
     const play = result.toolCalls.find((t) => t.tool === 'play_channel')
     expect(play?.data?.channelId).toBe('live_arena_sports')
   })
+
+  it('recommend_now accepts normalized category mentions', () => {
+    const plan = planAgentSteps('Recommend sports', baseContext)
+    const rec = plan.steps.find((s) => s.tool === 'recommend_now')
+    expect(rec?.input.category).toBe('Sports')
+    const result = executeAgentPlan(plan, baseContext)
+    const call = result.toolCalls.find((t) => t.tool === 'recommend_now')
+    expect(call?.result).toMatch(/Sports/i)
+    expect(call?.data?.channelIds?.[0]).toBe('live_arena_sports')
+  })
+
+  it('play_channel resolves category-only utterances', () => {
+    const turn = runAgentTurn('Play sports', baseContext)
+    const play = turn.toolCalls.find((t) => t.tool === 'play_channel')
+    expect(play?.data?.channelId).toBe('live_arena_sports')
+  })
 })
