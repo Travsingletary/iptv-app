@@ -23,7 +23,7 @@ const NAV: { id: AppView; label: string; icon: typeof Tv }[] = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
-export function SideNav() {
+export function SideNav({ overlay = false }: { overlay?: boolean }) {
   const view = useIptvStore((s) => s.view)
   const setView = useIptvStore((s) => s.setView)
   const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
@@ -43,8 +43,15 @@ export function SideNav() {
     }
     setView(id)
   }
+
   return (
-    <aside className="relative z-30 flex h-full w-[4.75rem] flex-col border-r border-white/8 bg-ink-900/90 backdrop-blur-xl md:w-56">
+    <aside
+      className={`relative z-30 flex h-full w-[4.75rem] flex-col border-r border-white/8 backdrop-blur-xl md:w-56 ${
+        overlay
+          ? 'bg-ink-950/90 shadow-[8px_0_40px_rgba(0,0,0,0.45)]'
+          : 'bg-ink-900/90'
+      }`}
+    >
       <div className="border-b border-white/8 px-3 py-5 md:px-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ember-500/15 ring-1 ring-ember-400/40">

@@ -53,6 +53,8 @@ import {
 interface IptvState {
   onboarded: boolean
   view: AppView
+  /** TV-first shell: nav + panels as overlays over the always-on video canvas. */
+  menuOpen: boolean
   sources: PlaylistSource[]
   activeSourceId: string
   channels: Channel[]
@@ -74,6 +76,8 @@ interface IptvState {
   reminderSyncError: string | null
   reminderSyncedAt: number | null
   setView: (view: AppView) => void
+  setMenuOpen: (open: boolean) => void
+  toggleMenu: () => void
   completeOnboarding: () => void
   setSearch: (q: string) => void
   setSelectedGroup: (group: string | null) => void
@@ -140,6 +144,7 @@ export const useIptvStore = create<IptvState>()(
     (set, get) => ({
       onboarded: false,
       view: 'home',
+      menuOpen: true,
       sources: [DEMO_SOURCE],
       activeSourceId: DEMO_SOURCE.id,
       channels: DEMO_CHANNELS,
@@ -161,9 +166,14 @@ export const useIptvStore = create<IptvState>()(
       reminderSyncError: null,
       reminderSyncedAt: null,
 
-      setView: (view) => set({ view }),
+      // Opening a section always reveals the overlay shell (TiviMate-style).
+      setView: (view) => set({ view, menuOpen: true }),
 
-      completeOnboarding: () => set({ onboarded: true, view: 'home' }),
+      setMenuOpen: (menuOpen) => set({ menuOpen }),
+
+      toggleMenu: () => set((s) => ({ menuOpen: !s.menuOpen })),
+
+      completeOnboarding: () => set({ onboarded: true, view: 'home', menuOpen: true }),
 
       setSearch: (search) => {
         set({ search })
@@ -532,6 +542,7 @@ export const useIptvStore = create<IptvState>()(
           }
           return {
             view: layout === 1 ? 'live' : 'multiview',
+            menuOpen: true,
             player: {
               ...s.player,
               multiViewLayout: layout,

@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Play, X } from 'lucide-react'
 import { ChannelRail } from '../components/browse/ChannelRail'
-import { VideoPlayer } from '../components/player/VideoPlayer'
-import { PlayerChrome } from '../components/player/PlayerChrome'
 import { selectVod, useIptvStore } from '../store/useIptvStore'
 
 export function VodPage() {
@@ -11,6 +9,7 @@ export function VodPage() {
   const player = useIptvStore((s) => s.player)
   const playChannel = useIptvStore((s) => s.playChannel)
   const setPlayer = useIptvStore((s) => s.setPlayer)
+  const setMenuOpen = useIptvStore((s) => s.setMenuOpen)
   const [detailId, setDetailId] = useState<string | null>(null)
 
   const vod = useMemo(() => selectVod(channels), [channels])
@@ -20,25 +19,6 @@ export function VodPage() {
   const playingVod = channels.find(
     (c) => c.id === player.channelId && c.kind !== 'live',
   )
-
-  if (playingVod) {
-    return (
-      <div
-        className="relative h-full bg-black"
-        onMouseMove={() => setPlayer({ overlayVisible: true })}
-      >
-        <VideoPlayer />
-        <PlayerChrome />
-        <button
-          type="button"
-          className="absolute left-4 top-4 z-30 rounded-full border border-white/15 bg-ink-900/80 px-3 py-1.5 text-sm backdrop-blur"
-          onClick={() => setPlayer({ channelId: null, paused: true })}
-        >
-          Back to catalog
-        </button>
-      </div>
-    )
-  }
 
   return (
     <div className="pb-16">
@@ -53,6 +33,34 @@ export function VodPage() {
           Browse posters, open a title, and play instantly — Netflix-style rails
           with IPTV sources underneath.
         </p>
+        {playingVod && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-ember-300">
+              Now playing <span className="font-semibold">{playingVod.name}</span>{' '}
+              on the TV canvas
+            </p>
+            <button
+              type="button"
+              data-tv-focus
+              className="rounded-full border border-white/15 bg-ink-900/80 px-3 py-1.5 text-sm"
+              onClick={() => setMenuOpen(false)}
+            >
+              Watch full screen
+            </button>
+            <button
+              type="button"
+              data-tv-focus
+              className="rounded-full border border-white/15 bg-ink-900/80 px-3 py-1.5 text-sm"
+              onClick={() => {
+                const live = channels.find((c) => c.kind === 'live')
+                if (live) playChannel(live.id)
+                else setPlayer({ channelId: null, paused: true })
+              }}
+            >
+              Back to catalog
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="grid grid-cols-2 gap-3 px-6 py-6 sm:grid-cols-3 md:grid-cols-4 md:px-10 lg:grid-cols-5">
@@ -141,6 +149,7 @@ export function VodPage() {
                   onClick={() => {
                     playChannel(detail.id)
                     setDetailId(null)
+                    setMenuOpen(false)
                   }}
                   className="inline-flex items-center gap-2 rounded-full bg-sand-50 px-5 py-3 text-sm font-semibold text-ink-950"
                 >

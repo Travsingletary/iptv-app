@@ -6,7 +6,6 @@ import { GuidePage } from './pages/GuidePage'
 import { VodPage } from './pages/VodPage'
 import { FavoritesPage } from './pages/FavoritesPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { MultiViewPage } from './pages/MultiViewPage'
 import { handleTvDirectionalKey } from './lib/tvFocus'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { useIptvStore } from './store/useIptvStore'
@@ -25,7 +24,8 @@ function ViewRouter() {
     case 'settings':
       return <SettingsPage />
     case 'multiview':
-      return <MultiViewPage />
+      // Mosaic renders on the Shell canvas; overlay only shows SideNav.
+      return null
     case 'home':
     default:
       return <HomePage />
@@ -38,6 +38,8 @@ export default function App() {
   const playChannel = useIptvStore((s) => s.playChannel)
   const setPlayer = useIptvStore((s) => s.setPlayer)
   const setView = useIptvStore((s) => s.setView)
+  const setMenuOpen = useIptvStore((s) => s.setMenuOpen)
+  const toggleMenu = useIptvStore((s) => s.toggleMenu)
   const channels = useIptvStore((s) => s.channels)
   const player = useIptvStore((s) => s.player)
 
@@ -50,31 +52,63 @@ export default function App() {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
-      const view = useIptvStore.getState().view
+      const state = useIptvStore.getState()
+      const view = state.view
+      const menuOpen = state.menuOpen
       const seedFocus =
         view === 'multiview' || view === 'settings' || view === 'guide' || view === 'vod'
 
-      // Spatial D-pad navigation when focus is already on a control
-      if (handleTvDirectionalKey(e, document, { seedIfUnfocused: seedFocus })) return
-
-      // On mosaic / settings / guide, arrows are for focus — not channel zap
-      if (
-        (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
-        seedFocus
-      ) {
+      // Remote: open/close overlay menu (R / OK-style Enter when menu closed)
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault()
+        toggleMenu()
+        return
+      }
+      if (e.key === 'Escape' || e.key === 'Backspace') {
+        e.preventDefault()
+        if (menuOpen) {
+          setMenuOpen(false)
+        } else {
+          setPlayer({ overlayVisible: !state.player.overlayVisible })
+        }
+        return
+      }
+      if ((e.key === 'Enter' || e.key === 'OK') && !menuOpen) {
+        const active = document.activeElement as HTMLElement | null
+        const tag = active?.tagName
+        // Don't steal OK/Enter from focused controls — only body-level OK opens menu
+        if (
+          active &&
+          active !== document.body &&
+          tag !== 'HTML' &&
+          tag !== 'BODY'
+        ) {
+          return
+        }
+        e.preventDefault()
+        setMenuOpen(true)
         return
       }
 
+      // Spatial D-pad navigation when focus is already on a control
+      if (handleTvDirectionalKey(e, document, { seedIfUnfocused: seedFocus || menuOpen }))
+        return
+
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (seedFocus || menuOpen)) {
+        return
+      }
+
+      // Channel zap only in immersive TV (menu dismissed)
       const live = channels.filter((c) => c.kind === 'live')
       const idx = live.findIndex((c) => c.id === player.channelId)
 
       if (e.key === ' ') {
         e.preventDefault()
         setPlayer({ paused: !useIptvStore.getState().player.paused })
-      } else if (e.key === 'ArrowUp' && idx >= 0) {
+      } else if (!menuOpen && e.key === 'ArrowUp' && idx >= 0) {
         e.preventDefault()
         playChannel(live[(idx - 1 + live.length) % live.length].id)
-      } else if (e.key === 'ArrowDown' && idx >= 0) {
+      } else if (!menuOpen && e.key === 'ArrowDown' && idx >= 0) {
         e.preventDefault()
         playChannel(live[(idx + 1) % live.length].id)
       } else if (e.key === 'm' || e.key === 'M') {
@@ -84,17 +118,22 @@ export default function App() {
       } else if (e.key === 'h' || e.key === 'H') {
         setView('home')
       } else if (e.key === 'v' || e.key === 'V') {
-        setView('multiview')
         useIptvStore.getState().setMultiViewLayout(
           useIptvStore.getState().player.multiViewLayout === 4 ? 4 : 2,
         )
-      } else if (e.key === 'Escape') {
-        setPlayer({ overlayVisible: !useIptvStore.getState().player.overlayVisible })
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [channels, player.channelId, playChannel, setPlayer, setView])
+  }, [
+    channels,
+    player.channelId,
+    playChannel,
+    setPlayer,
+    setView,
+    setMenuOpen,
+    toggleMenu,
+  ])
 
   if (!onboarded) return <OnboardingPage />
 
