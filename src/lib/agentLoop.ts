@@ -2,6 +2,11 @@ import type { Channel, EpgProgram } from '../types/iptv.js'
 import { buildForYouNow } from './recommendations.js'
 import { findUpcomingPrograms } from './reminders.js'
 import { formatNlEpgSummary, searchNlEpg } from './nlEpgSearch.js'
+import {
+  channelCategory,
+  detectCategoryMention,
+  rankChannelSearch,
+} from './categories.js'
 import type {
   AssistantContextSnapshot,
   AssistantToolCall,
@@ -85,7 +90,27 @@ export interface AgentRunResult {
 function findChannelByMessage(message: string, channels: Channel[]): Channel | undefined {
   const lower = message.toLowerCase()
   const sorted = [...channels].sort((a, b) => b.name.length - a.name.length)
-  return sorted.find((ch) => lower.includes(ch.name.toLowerCase()))
+  const byName = sorted.find((ch) => lower.includes(ch.name.toLowerCase()))
+  if (byName) return byName
+
+  // "play sports" / "tune to kids" → best match in that normalized category
+  const category = detectCategoryMention(message)
+  if (!category) return undefined
+  const ranked = rankChannelSearch({
+    channels: channels.filter((ch) => ch.kind === 'live' || !ch.kind),
+    query: '',
+    selectedCategory: category,
+  })
+  const picks = buildForYouNow(
+    {
+      channels: ranked.length ? ranked : channels,
+      favorites: [],
+      recentIds: [],
+      category,
+    },
+    1,
+  )
+  return picks[0] ?? ranked[0]
 }
 
 function searchEpgPrograms(
@@ -176,7 +201,21 @@ export function planAgentSteps(
     q.includes('what should i watch') ||
     /\bfind me something\b/.test(q)
   ) {
-    push('recommend_now', { source: 'heuristic' })
+    const category = detectCategoryMention(message)
+    push('recommend_now', {
+      source: 'heuristic',
+      ...(category ? { category } : {}),
+    })
+  }
+
+  // Bare category intents: "sports", "something for kids"
+  if (
+    !steps.some((s) => s.tool === 'recommend_now' || s.tool === 'search_epg' || s.tool === 'play_channel') &&
+    detectCategoryMention(message) &&
+    /\b(watch|something|channel|put on|tune)\b/.test(q)
+  ) {
+    const category = detectCategoryMention(message)!
+    push('recommend_now', { source: 'heuristic', category })
   }
 
   if (
@@ -265,12 +304,16 @@ function executeStep(
         }
       }
       case 'recommend_now': {
+        const category =
+          step.input.category ||
+          (step.input.query ? detectCategoryMention(step.input.query) : undefined)
         const picks = buildForYouNow(
           {
             channels: context.channels,
             favorites: context.favorites,
             recentIds: context.recentIds,
             interestTags: context.interestTags,
+            category: category || undefined,
           },
           5,
         )
@@ -280,7 +323,7 @@ function executeStep(
           status: 'executed',
           result:
             picks.length > 0
-              ? `Suggested: ${picks.map((ch) => ch.name).join(', ')}.`
+              ? `Suggested${category ? ` (${category})` : ''}: ${picks.map((ch) => ch.name).join(', ')}.`
               : 'No recommendation candidates available.',
           data: { channelIds: picks.map((ch) => ch.id) },
         }
@@ -349,11 +392,15 @@ function executeStep(
       case 'suggest_fallback': {
         const current = step.input.channelId || context.currentChannelId
         const failed = context.channels.find((ch) => ch.id === current)
+        const failedCat = failed ? channelCategory(failed) : null
         const alt = context.channels.find(
           (ch) =>
             ch.id !== current &&
             Boolean(ch.url) &&
-            (failed ? ch.group === failed.group && ch.kind === failed.kind : ch.kind === 'live'),
+            (failed
+              ? (channelCategory(ch) === failedCat || ch.group === failed.group) &&
+                ch.kind === failed.kind
+              : ch.kind === 'live'),
         )
         return {
           ...step,

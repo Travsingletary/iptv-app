@@ -1,4 +1,5 @@
 import type { Channel, ContentKind } from '../types/iptv'
+import { normalizeCategory } from './categories'
 
 function hashId(input: string): string {
   let h = 0
@@ -59,10 +60,13 @@ export function parseM3U(raw: string): Channel[] {
     if (meta) {
       const url = line
       const id = hashId(`${meta.name}|${url}|${meta.group}`)
+      const group = meta.group || 'Uncategorized'
+      const name = meta.name || 'Unknown'
       channels.push({
         id,
-        name: meta.name || 'Unknown',
-        group: meta.group || 'Uncategorized',
+        name,
+        group,
+        category: normalizeCategory(group, name),
         url,
         kind: meta.kind || 'live',
         logo: meta.logo,

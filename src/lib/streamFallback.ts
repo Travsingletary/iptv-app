@@ -1,4 +1,5 @@
 import type { Channel } from '../types/iptv.js'
+import { channelCategory } from './categories.js'
 
 export interface StreamFallbackSuggestion {
   channelId: string
@@ -10,7 +11,7 @@ export interface StreamFallbackSuggestion {
 
 /**
  * Suggest an alternate title when the current stream fatally errors.
- * Prefer same group, then same kind, excluding the failed channel.
+ * Prefer same group, then same normalized category, then same kind.
  */
 export function suggestStreamFallback(
   failedChannelId: string,
@@ -22,19 +23,25 @@ export function suggestStreamFallback(
   const others = channels.filter((ch) => ch.id !== failedChannelId && Boolean(ch.url))
   if (!others.length) return null
 
+  const failedCat = channelCategory(failed)
   const sameGroup = others.filter(
     (ch) => ch.group === failed.group && ch.kind === failed.kind,
   )
+  const sameCategory = others.filter(
+    (ch) => channelCategory(ch) === failedCat && ch.kind === failed.kind,
+  )
   const sameKind = others.filter((ch) => ch.kind === failed.kind)
-  const pick = sameGroup[0] || sameKind[0] || others[0]
+  const pick = sameGroup[0] || sameCategory[0] || sameKind[0] || others[0]
   if (!pick) return null
 
   const reason =
     pick.group === failed.group && pick.kind === failed.kind
       ? `Same group · ${pick.group}`
-      : pick.kind === failed.kind
-        ? `Same library · ${pick.kind}`
-        : 'Next available title'
+      : channelCategory(pick) === failedCat && pick.kind === failed.kind
+        ? `Same category · ${failedCat}`
+        : pick.kind === failed.kind
+          ? `Same library · ${pick.kind}`
+          : 'Next available title'
 
   return {
     channelId: pick.id,
@@ -54,11 +61,13 @@ export function suggestStreamFallbacks(
   const failed = channels.find((ch) => ch.id === failedChannelId)
   if (!failed) return []
 
+  const failedCat = channelCategory(failed)
   const others = channels.filter((ch) => ch.id !== failedChannelId && Boolean(ch.url))
   const ranked = [...others].sort((a, b) => {
     const score = (ch: Channel) => {
       let s = 0
       if (ch.group === failed.group) s += 40
+      if (channelCategory(ch) === failedCat) s += 28
       if (ch.kind === failed.kind) s += 20
       return s
     }
@@ -73,8 +82,10 @@ export function suggestStreamFallbacks(
     reason:
       pick.group === failed.group
         ? `Same group · ${pick.group}`
-        : pick.kind === failed.kind
-          ? `Same library · ${pick.kind}`
-          : 'Available title',
+        : channelCategory(pick) === failedCat
+          ? `Same category · ${failedCat}`
+          : pick.kind === failed.kind
+            ? `Same library · ${pick.kind}`
+            : 'Available title',
   }))
 }

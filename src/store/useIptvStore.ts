@@ -694,6 +694,7 @@ export function selectVod(channels: Channel[]) {
   return channels.filter((c) => c.kind === 'movie' || c.kind === 'series')
 }
 
+/** @deprecated Prefer rankCategoryChips — kept for callers expecting raw group titles. */
 export function selectGroups(channels: Channel[]) {
   return [...new Set(channels.map((c) => c.group))].sort()
 }

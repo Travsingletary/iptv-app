@@ -1,4 +1,9 @@
 import type { Channel } from '../types/iptv.js'
+import {
+  channelCategory,
+  detectCategoryMention,
+  type NormalizedCategory,
+} from './categories.js'
 
 export interface RecommendationContext {
   channels: Channel[]
@@ -6,6 +11,8 @@ export interface RecommendationContext {
   recentIds: string[]
   /** Profile interest tags (sports, kids, …) bias scoring. */
   interestTags?: string[]
+  /** Optional normalized category filter (Sports, Kids, …). */
+  category?: NormalizedCategory | string
   now?: Date
 }
 
@@ -18,44 +25,63 @@ function hourBucket(date: Date) {
 }
 
 function scoreByTime(channel: Channel, bucket: ReturnType<typeof hourBucket>) {
-  const group = channel.group.toLowerCase()
-  if (bucket === 'morning' && group.includes('news')) return 28
-  if (bucket === 'afternoon' && (group.includes('sports') || group.includes('kids'))) return 26
-  if (bucket === 'evening' && (group.includes('movies') || group.includes('entertainment'))) return 30
-  if (bucket === 'late' && (group.includes('movies') || group.includes('music'))) return 24
+  const cat = channelCategory(channel).toLowerCase()
+  if (bucket === 'morning' && cat === 'news') return 28
+  if (bucket === 'afternoon' && (cat === 'sports' || cat === 'kids')) return 26
+  if (bucket === 'evening' && (cat === 'movies' || cat === 'entertainment')) return 30
+  if (bucket === 'late' && (cat === 'movies' || cat === 'music')) return 24
   return channel.kind === 'live' ? 12 : 8
 }
 
 function scoreByInterests(channel: Channel, tags: string[]) {
   if (!tags.length) return 0
-  const hay = `${channel.group} ${channel.name} ${channel.description ?? ''}`.toLowerCase()
+  const cat = channelCategory(channel).toLowerCase()
+  const hay = `${channel.group} ${channel.name} ${channel.description ?? ''} ${cat}`.toLowerCase()
   let score = 0
   for (const tag of tags) {
     const t = tag.toLowerCase().trim()
     if (!t) continue
-    if (hay.includes(t)) score += 22
+    const mentioned = detectCategoryMention(t)
+    if (mentioned && channelCategory(channel) === mentioned) score += 28
+    else if (hay.includes(t) || cat.includes(t)) score += 22
   }
   return score
 }
 
 export function buildForYouNow(context: RecommendationContext, limit = 10): Channel[] {
-  const { channels, favorites, recentIds, interestTags = [], now = new Date() } = context
+  const {
+    channels,
+    favorites,
+    recentIds,
+    interestTags = [],
+    category,
+    now = new Date(),
+  } = context
   if (!channels.length) return []
 
   const recentWeights = new Map(recentIds.map((id, index) => [id, Math.max(24 - index * 3, 0)]))
   const favSet = new Set(favorites)
   const bucket = hourBucket(now)
+  const categoryFilter =
+    typeof category === 'string' && category
+      ? detectCategoryMention(category) ?? (category as NormalizedCategory)
+      : undefined
 
   return [...channels]
+    .filter((channel) => {
+      if (!categoryFilter) return true
+      return channelCategory(channel) === categoryFilter
+    })
     .map((channel) => {
       const favoriteBoost = favSet.has(channel.id) ? 34 : 0
       const recentBoost = recentWeights.get(channel.id) ?? 0
       const timeBoost = scoreByTime(channel, bucket)
       const kindBoost = channel.kind === 'live' ? 10 : 4
       const interestBoost = scoreByInterests(channel, interestTags)
+      const categoryBoost = categoryFilter && channelCategory(channel) === categoryFilter ? 20 : 0
       return {
         channel,
-        score: favoriteBoost + recentBoost + timeBoost + kindBoost + interestBoost,
+        score: favoriteBoost + recentBoost + timeBoost + kindBoost + interestBoost + categoryBoost,
       }
     })
     .sort((a, b) => b.score - a.score)

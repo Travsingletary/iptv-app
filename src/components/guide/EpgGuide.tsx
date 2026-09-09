@@ -4,6 +4,7 @@ import { useIptvStore } from '../../store/useIptvStore'
 import { programsForChannel, progressPct } from '../../lib/epg'
 import { formatTimeRange, hoursGrid, startOfHour } from '../../lib/time'
 import { selectLiveChannels } from '../../store/useIptvStore'
+import { rankChannelSearch } from '../../lib/categories'
 
 const HOUR_WIDTH = 240
 
@@ -12,6 +13,8 @@ export function EpgGuide() {
   const epg = useIptvStore((s) => s.epg)
   const prefs = useIptvStore((s) => s.prefs)
   const search = useIptvStore((s) => s.search)
+  const favorites = useIptvStore((s) => s.favorites)
+  const recentIds = useIptvStore((s) => s.recentIds)
   const playChannel = useIptvStore((s) => s.playChannel)
   const player = useIptvStore((s) => s.player)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -19,13 +22,13 @@ export function EpgGuide() {
   const live = useMemo(() => {
     const list = selectLiveChannels(channels)
     if (!search.trim()) return list
-    const q = search.toLowerCase()
-    return list.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.group.toLowerCase().includes(q),
-    )
-  }, [channels, search])
+    return rankChannelSearch({
+      channels: list,
+      query: search,
+      favorites,
+      recentIds,
+    })
+  }, [channels, search, favorites, recentIds])
 
   const gridStart = startOfHour(Date.now() - 30 * 60_000)
   const hours = hoursGrid(gridStart, prefs.guideHours)

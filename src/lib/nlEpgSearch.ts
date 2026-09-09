@@ -3,6 +3,12 @@
  * Examples: "sports in next 2 hours", "movies under 2h", "news tonight".
  */
 import type { Channel, EpgProgram } from '../types/iptv.js'
+import {
+  CATEGORY_ALIASES,
+  channelCategory,
+  detectCategoryMention,
+  categoryAliasesForSlug,
+} from './categories.js'
 
 export interface NlEpgFilters {
   rawQuery: string
@@ -28,16 +34,6 @@ export interface NlEpgHit {
   end: number
   durationMs: number
   score: number
-}
-
-const CATEGORY_ALIASES: Record<string, string[]> = {
-  sports: ['sport', 'sports', 'match', 'football', 'soccer', 'nba', 'nfl'],
-  news: ['news', 'bulletin', 'headline'],
-  movies: ['movie', 'movies', 'film', 'films', 'cinema'],
-  kids: ['kids', 'children', 'cartoon'],
-  music: ['music', 'concert'],
-  documentary: ['doc', 'docs', 'documentary', 'documentaries'],
-  entertainment: ['entertainment', 'show', 'shows'],
 }
 
 function parseDurationHours(q: string): number | undefined {
@@ -93,12 +89,8 @@ function parseWindowHours(q: string, now: number): { start: number; end: number 
 }
 
 function detectCategory(q: string): string | undefined {
-  for (const [canonical, aliases] of Object.entries(CATEGORY_ALIASES)) {
-    if (aliases.some((a) => new RegExp(`\\b${a}\\b`, 'i').test(q))) {
-      return canonical === 'movies' ? 'Movies' : canonical[0].toUpperCase() + canonical.slice(1)
-    }
-  }
-  return undefined
+  const hit = detectCategoryMention(q)
+  return hit
 }
 
 function detectKind(q: string): NlEpgFilters['kind'] | undefined {
@@ -176,7 +168,8 @@ export function searchNlEpg(
       if (
         !(
           filters.kind === 'movie' &&
-          (channel.group.toLowerCase().includes('movie') ||
+          (channelCategory(channel) === 'Movies' ||
+            channel.group.toLowerCase().includes('movie') ||
             (program.category ?? '').toLowerCase().includes('movie'))
         )
       ) {
@@ -184,24 +177,45 @@ export function searchNlEpg(
       }
     }
 
-    const categoryHay = [program.category ?? '', channel?.group ?? '', program.title, program.description ?? '']
+    const categoryHay = [
+      program.category ?? '',
+      channel?.group ?? '',
+      channel ? channelCategory(channel) : '',
+      program.title,
+      program.description ?? '',
+    ]
       .join(' ')
       .toLowerCase()
 
     if (filters.category) {
-      const aliases = CATEGORY_ALIASES[filters.category.toLowerCase()] ?? [
-        filters.category.toLowerCase(),
-      ]
-      if (!aliases.some((a) => categoryHay.includes(a))) continue
+      const aliases = categoryAliasesForSlug(filters.category)
+      const normalizedHit =
+        channel != null && channelCategory(channel) === filters.category
+      if (!normalizedHit && !aliases.some((a) => categoryHay.includes(a))) continue
     }
 
     let score = 10
     if (program.start <= now && program.end > now) score += 20
     if (channel && favSet.has(channel.id)) score += 15
+    if (channel && filters.category && channelCategory(channel) === filters.category) {
+      score += 12
+    }
 
     const hay = categoryHay
+    const categoryTokenSet = new Set(
+      filters.category
+        ? categoryAliasesForSlug(filters.category).map((a) => a.toLowerCase())
+        : [],
+    )
     for (const token of filters.textTokens) {
-      if (CATEGORY_ALIASES[filters.category?.toLowerCase() ?? '']?.includes(token)) continue
+      if (categoryTokenSet.has(token)) continue
+      // Skip tokens that are only category aliases from the shared map
+      if (
+        Object.values(CATEGORY_ALIASES).some((list) => list.includes(token)) &&
+        filters.category
+      ) {
+        continue
+      }
       if (hay.includes(token)) score += 8
       else score -= 2
     }
@@ -214,7 +228,7 @@ export function searchNlEpg(
       title: program.title,
       channelId: channel?.id ?? program.channelId,
       channelName: channel?.name,
-      category: program.category ?? channel?.group,
+      category: program.category ?? (channel ? channelCategory(channel) : undefined) ?? channel?.group,
       start: program.start,
       end: program.end,
       durationMs,

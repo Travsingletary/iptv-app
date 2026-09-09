@@ -3,6 +3,7 @@
  * Spec: player_api.php?username=&password=&action=
  */
 import type { Channel, ContentKind, PlaylistSource } from '../types/iptv.js'
+import { normalizeCategory } from './categories.js'
 import { DEMO_CHANNELS, DEMO_SOURCE, refreshDemoEpg } from './demoData.js'
 import {
   detectPanelProvider,
@@ -137,10 +138,12 @@ function mapRow(
   const archiveHours = Number(row.tv_archive_duration)
   const provider = resolveProvider(creds)
   const idPrefix = provider === 'megaott' ? 'megaott' : 'xtream'
+  const group = row.category_name || groupFallback
   return {
     id: `${idPrefix}_${kind}_${streamId}`,
     name: row.name,
-    group: row.category_name || groupFallback,
+    group,
+    category: normalizeCategory(group, row.name),
     url: buildXtreamStreamUrl(creds, streamKind === 'live' ? 'live' : streamKind === 'series' ? 'series' : 'movie', streamId, ext),
     kind,
     logo: row.stream_icon || row.cover,

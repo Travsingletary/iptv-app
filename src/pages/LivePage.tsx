@@ -1,11 +1,16 @@
 import { useEffect, useMemo } from 'react'
 import { Search } from 'lucide-react'
 import {
-  selectGroups,
   selectLiveChannels,
   useIptvStore,
 } from '../store/useIptvStore'
 import { nowPlaying } from '../lib/epg'
+import {
+  FAVORITES_CHIP,
+  channelCategory,
+  rankCategoryChips,
+  rankChannelSearch,
+} from '../lib/categories'
 
 /** Channel browser panel — video lives on the Shell canvas behind overlays. */
 export function LivePage() {
@@ -18,18 +23,31 @@ export function LivePage() {
   const setSelectedGroup = useIptvStore((s) => s.setSelectedGroup)
   const search = useIptvStore((s) => s.search)
   const setSearch = useIptvStore((s) => s.setSearch)
+  const favorites = useIptvStore((s) => s.favorites)
+  const recentIds = useIptvStore((s) => s.recentIds)
 
   const live = useMemo(() => selectLiveChannels(channels), [channels])
-  const groups = useMemo(() => selectGroups(live), [live])
+  const chips = useMemo(
+    () =>
+      rankCategoryChips({
+        channels: live,
+        favorites,
+        recentIds,
+      }),
+    [live, favorites, recentIds],
+  )
 
-  const filtered = useMemo(() => {
-    return live.filter((c) => {
-      if (selectedGroup && c.group !== selectedGroup) return false
-      if (!search.trim()) return true
-      const hay = `${c.name} ${c.group}`.toLowerCase()
-      return hay.includes(search.toLowerCase())
-    })
-  }, [live, selectedGroup, search])
+  const filtered = useMemo(
+    () =>
+      rankChannelSearch({
+        channels: live,
+        query: search,
+        selectedCategory: selectedGroup,
+        favorites,
+        recentIds,
+      }),
+    [live, selectedGroup, search, favorites, recentIds],
+  )
 
   useEffect(() => {
     if (!player.channelId && filtered[0]) {
@@ -68,13 +86,15 @@ export function LivePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search channels"
+            data-testid="live-channel-search"
             className="w-full rounded-xl border border-white/10 bg-ink-850 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-ember-400/50"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1" data-testid="live-category-chips">
           <button
             type="button"
             data-tv-focus
+            data-testid="chip-all"
             onClick={() => setSelectedGroup(null)}
             className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium focus-visible:focus-ring ${
               !selectedGroup
@@ -84,28 +104,31 @@ export function LivePage() {
           >
             All
           </button>
-          {groups.map((g) => (
+          {chips.map((chip) => (
             <button
-              key={g}
+              key={chip.id}
               type="button"
               data-tv-focus
-              onClick={() => setSelectedGroup(g)}
+              data-testid={`chip-${chip.id === FAVORITES_CHIP ? 'favorites' : chip.id.toLowerCase()}`}
+              onClick={() => setSelectedGroup(chip.id)}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium focus-visible:focus-ring ${
-                selectedGroup === g
+                selectedGroup === chip.id
                   ? 'bg-ember-500 text-ink-950'
                   : 'bg-ink-800 text-mist-300'
               }`}
             >
-              {g}
+              {chip.label}
+              <span className="ml-1 opacity-60">{chip.count}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2 md:p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2 md:p-3" data-testid="live-channel-list">
         {filtered.map((ch) => {
           const program = nowPlaying(epg, ch.tvgId || ch.id)
           const on = player.channelId === ch.id
+          const bucket = channelCategory(ch)
           return (
             <button
               key={ch.id}
@@ -134,7 +157,10 @@ export function LivePage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{ch.name}</p>
                 <p className="truncate text-xs text-mist-300">
-                  {program?.title || ch.group}
+                  {program?.title ||
+                    (ch.group && ch.group !== bucket
+                      ? `${bucket} · ${ch.group}`
+                      : ch.group || bucket)}
                 </p>
               </div>
               {on && (

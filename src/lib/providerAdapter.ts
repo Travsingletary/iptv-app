@@ -105,8 +105,17 @@ const DEFAULT_TOOLS: ProviderToolDefinition[] = [
     type: 'function',
     function: {
       name: 'recommend_now',
-      description: 'Recommend channels to watch now',
-      parameters: { type: 'object', properties: {} },
+      description:
+        'Recommend channels to watch now. Optional category: News, Sports, Movies, Kids, Entertainment, Music, Documentary, Local.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: {
+            type: 'string',
+            description: 'Normalized category bucket such as Sports or Kids',
+          },
+        },
+      },
     },
   },
   {
@@ -436,7 +445,9 @@ export function syntheticMessageForTool(
     case 'set_reminder':
       return `Remind me ${input.query || original}`
     case 'recommend_now':
-      return 'Recommend something to watch'
+      return input.category
+        ? `Recommend ${input.category} to watch`
+        : 'Recommend something to watch'
     case 'search_epg':
       return `What is on ${input.query || original}`
     case 'open_guide':

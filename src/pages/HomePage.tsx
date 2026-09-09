@@ -8,6 +8,7 @@ import {
 } from '../store/useIptvStore'
 import { buildForYouNow } from '../lib/recommendations'
 import { getActiveProfile } from '../lib/profiles'
+import { channelCategory } from '../lib/categories'
 
 export function HomePage() {
   const channels = useIptvStore((s) => s.channels)
@@ -37,11 +38,14 @@ export function HomePage() {
   const byGroup = useMemo(() => {
     const map = new Map<string, typeof channels>()
     for (const ch of live) {
-      const list = map.get(ch.group) || []
+      const bucket = channelCategory(ch)
+      const list = map.get(bucket) || []
       list.push(ch)
-      map.set(ch.group, list)
+      map.set(bucket, list)
     }
-    return [...map.entries()].slice(0, 4)
+    return [...map.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .slice(0, 4)
   }, [live])
 
   if (!featured) {

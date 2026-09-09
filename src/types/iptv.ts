@@ -4,7 +4,13 @@ export interface Channel {
   id: string
   name: string
   logo?: string
+  /** Original provider group / category_name (kept for display + fallback). */
   group: string
+  /**
+   * Normalized browse bucket (News, Sports, Kids, …).
+   * Derived from `group` (+ name) when missing; see `normalizeCategory`.
+   */
+  category?: string
   url: string
   kind: ContentKind
   tvgId?: string
