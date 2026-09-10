@@ -60,6 +60,18 @@ describe('automationRules', () => {
     expect(auto?.channelId).not.toBe('live_aether_one')
   })
 
+  it('does not auto-switch or suggest fallback for VOD titles', () => {
+    const movie = DEMO_CHANNELS.find((c) => c.kind === 'movie')!
+    const actions = evaluateAutomationRules(DEFAULT_AUTOMATION_RULES, snapshot({
+      streamError: 'Stream error. Try another channel.',
+      channelId: movie.id,
+      buffering: true,
+      bufferingStartedAt: Date.now() - 20_000,
+    }))
+    expect(actions.some((a) => a.kind === 'auto_switch_fallback')).toBe(false)
+    expect(actions.some((a) => a.kind === 'toast_fallback_suggest')).toBe(false)
+  })
+
   it('records episode keys to prevent re-fire', () => {
     const snap = snapshot({
       buffering: true,

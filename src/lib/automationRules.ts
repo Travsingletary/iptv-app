@@ -155,6 +155,9 @@ export function evaluateAutomationRules(
       if (!snapshot.buffering || snapshot.bufferingStartedAt == null || !snapshot.channelId) {
         continue
       }
+      const current = snapshot.channels.find((ch) => ch.id === snapshot.channelId)
+      // Live-only: VOD titles should not suggest live alternates while buffering.
+      if (!current || current.kind !== 'live') continue
       const elapsedSec = (snapshot.now - snapshot.bufferingStartedAt) / 1000
       if (elapsedSec < rule.bufferingSeconds) continue
       const suggestions = suggestStreamFallbacks(snapshot.channelId, snapshot.channels, 3)
