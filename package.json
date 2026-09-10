@@ -19,9 +19,14 @@
     "verify:phase6": "node e2e/verify-phase6.mjs",
     "verify:finish": "node e2e/verify-finish.mjs",
     "test:e2e": "node e2e/verify-all.mjs",
-    "check:demo-streams": "node e2e/check-demo-streams.mjs"
+    "check:demo-streams": "node e2e/check-demo-streams.mjs",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:apk": "npm run android:sync && node scripts/android-assemble-debug.mjs",
+    "android:open": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
     "@supabase/supabase-js": "^2.50.2",
     "framer-motion": "^12.23.12",
     "hls.js": "^1.6.7",
@@ -33,6 +38,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

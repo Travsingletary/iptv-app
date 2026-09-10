@@ -1,0 +1,13 @@
+{
+  "appId": "tv.aether.player",
+  "appName": "Aether",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#07090d"
+  }
+}

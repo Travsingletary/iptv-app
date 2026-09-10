@@ -28,3 +28,10 @@ server/.assistant-core.bundle.mjs
 *.sw?
 .playwright-mcp/
 .artifacts/
+
+# Android / Capacitor local SDK path & signing secrets (never commit)
+android/local.properties
+*.jks
+*.keystore
+*.apk
+*.aab

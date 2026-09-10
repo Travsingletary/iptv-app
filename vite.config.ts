@@ -110,6 +110,8 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    // Relative asset URLs so the Capacitor Android WebView can load file/capacitor assets.
+    base: './',
     plugins: [react(), assistantApiPlugin()],
     server: {
       host: true,

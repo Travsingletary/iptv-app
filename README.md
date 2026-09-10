@@ -42,6 +42,30 @@ npm run dev
 
 Open the printed local URL, choose **Enter with demo pack**, then browse Home / Live / Guide / On Demand / Multi-view.
 
+## Share with friends (today)
+
+**Best path for Fire Stick / Android:** build a debug APK, host it on any HTTPS URL, friends install with the **Downloader** app.
+
+```bash
+npm run android:apk
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+1. Upload the APK (GitHub Releases, Cloudflare R2, S3, etc.).
+2. On the device: install **Downloader** → paste the HTTPS APK URL → Install → Open **Aether**.
+3. Friends enter their own MegaOTT / M3U credentials in Settings (secrets stay on-device).
+
+Full steps, Fire Stick vs phone, signing, and caveats: [`docs/ANDROID_DISTRIBUTION.md`](docs/ANDROID_DISTRIBUTION.md).
+
+| Path | When to use |
+| --- | --- |
+| **Hosted APK + Downloader** | Fire Stick / Android sideload (recommended IPTV distribution) |
+| `npm run dev` / preview URL | Same Wi‑Fi demo on a laptop/browser |
+| `npm run build && npm run start:api` | Hosted web demo + optional `/api/assistant` |
+| PWA “Add to Home Screen” | Phones only; **usually insufficient on Fire TV** — prefer APK |
+
+App id: `tv.aether.player` · Capacitor wraps the Vite SPA. Live betting is **deferred** (not in this build).
+
 ## Demo vs live
 
 | Capability | Without secrets (demo) | With credentials |
@@ -64,8 +88,13 @@ Open the printed local URL, choose **Enter with demo pack**, then browse Home / 
 | `npm run verify:phase1` … `verify:phase6` | Per-phase Playwright runtime checks |
 | `npm run verify:finish` | Finish-pass Auth / AI mode / catch-up / multi-view checks |
 | `npm run test:e2e` | Run phases 2–6 + finish e2e against `AETHER_URL` |
+| `npm run android:sync` | `build` + `cap sync android` |
+| `npm run android:apk` | Sync + assemble **debug** APK |
+| `npm run android:open` | Open project in Android Studio |
 
 CI tip: start `npm run dev` (or `npm run start:api` after build), then `AETHER_URL=http://127.0.0.1:5173 npm run test:e2e`.
+
+APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (see `docs/ANDROID_DISTRIBUTION.md`).
 
 ## Environment
 
@@ -126,3 +155,5 @@ React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js
 - Demo catch-up is a documented stub (`aether_catchup=` query) because public samples have no MegaOTT archive.
 - Bring your own legal playlist / provider credentials.
 - Headless / some browsers lack `SpeechRecognition` — typed assistant intents still work.
+- Panel `max_connections=1` — avoid auto-alternate-on-error kicking your own stream.
+- **Future (not built):** live betting / sportsbook overlays — documented only; out of scope for current APK/web.
