@@ -7,10 +7,7 @@ import { VodPage } from './pages/VodPage'
 import { FavoritesPage } from './pages/FavoritesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { handleTvDirectionalKey } from './lib/tvFocus'
-import {
-  hasActiveTvControl,
-  resolveRemoteAction,
-} from './lib/fireStickRemote'
+import { hasActiveTvControl, resolveRemoteAction } from './lib/fireStickRemote'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { useIptvStore } from './store/useIptvStore'
 
@@ -57,10 +54,30 @@ export default function App() {
   const channels = useIptvStore((s) => s.channels)
   const player = useIptvStore((s) => s.player)
   const menuOpen = useIptvStore((s) => s.menuOpen)
+  const prefs = useIptvStore((s) => s.prefs)
 
   useEffect(() => {
     refreshDemoGuide()
   }, [refreshDemoGuide])
+
+  // Accessibility prefs → documentElement classes (large text / high contrast).
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.toggle('a11y-large-text', Boolean(prefs.largeText))
+    root.classList.toggle('a11y-high-contrast', Boolean(prefs.highContrast))
+    root.classList.toggle('a11y-reduce-motion', Boolean(prefs.reduceMotion))
+  }, [prefs.largeText, prefs.highContrast, prefs.reduceMotion])
+
+  // Seed focus on onboarding for Fire Stick / keyboard.
+  useEffect(() => {
+    if (onboarded) return
+    const id = window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>('[data-testid="onboarding-page"] [data-tv-focus]')
+        ?.focus()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [onboarded])
 
   // When the Remote overlay opens, seed focus onto SideNav / first TV control.
   useEffect(() => {
@@ -92,6 +109,12 @@ export default function App() {
       const view = state.view
       const menuOpen = state.menuOpen
       const overlayVisible = state.player.overlayVisible
+      // Onboarding owns D-pad / Enter before shell remote map.
+      if (!state.onboarded) {
+        if (handleTvDirectionalKey(e, document, { seedIfUnfocused: true })) return
+        return
+      }
+
       const focusMode = focusSeedForView(view, menuOpen, overlayVisible)
       const focused = hasActiveTvControl(document.activeElement)
 
@@ -164,22 +187,14 @@ export default function App() {
       } else if (e.key === 'h' || e.key === 'H') {
         setView('home')
       } else if (e.key === 'v' || e.key === 'V') {
-        useIptvStore.getState().setMultiViewLayout(
-          useIptvStore.getState().player.multiViewLayout === 4 ? 4 : 2,
-        )
+        useIptvStore
+          .getState()
+          .setMultiViewLayout(useIptvStore.getState().player.multiViewLayout === 4 ? 4 : 2)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [
-    channels,
-    player.channelId,
-    playChannel,
-    setPlayer,
-    setView,
-    setMenuOpen,
-    toggleMenu,
-  ])
+  }, [channels, player.channelId, playChannel, setPlayer, setView, setMenuOpen, toggleMenu])
 
   if (!onboarded) return <OnboardingPage />
 

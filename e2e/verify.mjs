@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { enterWithDemoPack } from './onboarding.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -86,11 +87,7 @@ try {
   })
   await page.reload({ waitUntil: 'networkidle' })
 
-  const demoBtn = page.getByRole('button', { name: /demo pack/i })
-  if (await demoBtn.count()) {
-    await demoBtn.click()
-    await page.waitForTimeout(800)
-  }
+  await enterWithDemoPack(page)
   note('onboarding: entered demo pack')
   await page.screenshot({ path: path.join(outDir, 'verify_home.png') })
 

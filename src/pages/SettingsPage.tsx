@@ -17,7 +17,6 @@ import {
   WEBSITE_ACCOUNT_URL_HINT,
 } from '../lib/panelCredentials'
 
-
 function AuthSection() {
   const [auth, setAuth] = useState<AuthSnapshot | null>(null)
   const [email, setEmail] = useState('')
@@ -222,9 +221,7 @@ function ProfilesSection() {
             <li
               key={profile.id}
               className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
-                selected
-                  ? 'border-ember-400/40 bg-ember-500/10'
-                  : 'border-white/8 bg-ink-850/80'
+                selected ? 'border-ember-400/40 bg-ember-500/10' : 'border-white/8 bg-ink-850/80'
               }`}
             >
               <button
@@ -329,10 +326,7 @@ function AutomationRulesSection() {
       </div>
       <ul className="space-y-3">
         {rules.map((rule) => (
-          <li
-            key={rule.id}
-            className="rounded-xl border border-white/8 bg-ink-850/80 px-4 py-3"
-          >
+          <li key={rule.id} className="rounded-xl border border-white/8 bg-ink-850/80 px-4 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-sand-50">{rule.label}</p>
@@ -358,9 +352,7 @@ function AutomationRulesSection() {
                   max={20}
                   step={1}
                   value={rule.bufferingSeconds}
-                  onChange={(e) =>
-                    setParams(rule.id, { bufferingSeconds: Number(e.target.value) })
-                  }
+                  onChange={(e) => setParams(rule.id, { bufferingSeconds: Number(e.target.value) })}
                   className="mt-1 w-full accent-ember-400"
                 />
               </label>
@@ -374,9 +366,7 @@ function AutomationRulesSection() {
                   max={15}
                   step={1}
                   value={rule.leadMinutes}
-                  onChange={(e) =>
-                    setParams(rule.id, { leadMinutes: Number(e.target.value) })
-                  }
+                  onChange={(e) => setParams(rule.id, { leadMinutes: Number(e.target.value) })}
                   className="mt-1 w-full accent-ember-400"
                 />
               </label>
@@ -525,9 +515,7 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-6 py-8 md:px-10">
       <header>
-        <p className="font-mono text-xs uppercase tracking-[0.22em] text-ember-400">
-          Preferences
-        </p>
+        <p className="font-mono text-xs uppercase tracking-[0.22em] text-ember-400">Preferences</p>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
           Settings
         </h1>
@@ -583,7 +571,10 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6" data-testid="megaott-section">
+      <section
+        className="glass-panel space-y-4 rounded-3xl p-5 md:p-6"
+        data-testid="megaott-section"
+      >
         <div>
           <h2 className="font-display text-lg font-semibold">MegaOTT</h2>
           <p className="mt-1 text-sm text-mist-300">
@@ -760,7 +751,7 @@ export function SettingsPage() {
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
               rows={6}
-              placeholder="#EXTM3U&#10;#EXTINF:-1 tvg-id=&quot;…&quot; group-title=&quot;News&quot;,Channel&#10;https://…"
+              placeholder='#EXTM3U&#10;#EXTINF:-1 tvg-id="…" group-title="News",Channel&#10;https://…'
               className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 font-mono text-xs outline-none focus:border-ember-400/50"
               data-testid="m3u-paste"
             />
@@ -809,6 +800,32 @@ export function SettingsPage() {
             className="accent-ember-400"
           />
         </label>
+        <label
+          className="flex items-center justify-between gap-4 text-sm"
+          data-testid="a11y-large-text"
+        >
+          Large text
+          <input
+            type="checkbox"
+            checked={Boolean(prefs.largeText)}
+            onChange={(e) => setPrefs({ largeText: e.target.checked })}
+            className="accent-ember-400"
+            data-tv-focus
+          />
+        </label>
+        <label
+          className="flex items-center justify-between gap-4 text-sm"
+          data-testid="a11y-high-contrast"
+        >
+          High contrast
+          <input
+            type="checkbox"
+            checked={Boolean(prefs.highContrast)}
+            onChange={(e) => setPrefs({ highContrast: e.target.checked })}
+            className="accent-ember-400"
+            data-tv-focus
+          />
+        </label>
         <label className="block text-sm">
           Auto-hide player controls ({prefs.autoHideControlsMs} ms)
           <input
@@ -817,9 +834,7 @@ export function SettingsPage() {
             max={8000}
             step={200}
             value={prefs.autoHideControlsMs}
-            onChange={(e) =>
-              setPrefs({ autoHideControlsMs: Number(e.target.value) })
-            }
+            onChange={(e) => setPrefs({ autoHideControlsMs: Number(e.target.value) })}
             className="mt-2 w-full accent-ember-400"
           />
         </label>
@@ -845,12 +860,8 @@ export function SettingsPage() {
             className="h-16 w-auto object-contain"
           />
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.22em] text-ember-400">
-              About
-            </p>
-            <h2 className="font-display text-lg font-semibold text-ember-400">
-              SteadyStream
-            </h2>
+            <p className="font-mono text-xs uppercase tracking-[0.22em] text-ember-400">About</p>
+            <h2 className="font-display text-lg font-semibold text-ember-400">SteadyStream</h2>
             <p className="mt-1 text-sm text-mist-300">
               Premium IPTV player · v1.0.0 · package id{' '}
               <span className="font-mono text-sand-100">tv.aether.player</span>

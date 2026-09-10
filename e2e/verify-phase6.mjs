@@ -7,6 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { resolveArtifactDir, safeWriteFile } from './artifactDir.mjs'
 import { fileURLToPath } from 'node:url'
+import { enterWithDemoPack } from './onboarding.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -70,11 +71,7 @@ try {
   await page.evaluate(() => localStorage.clear())
   await page.reload({ waitUntil: 'networkidle' })
 
-  const demoBtn = page.getByRole('button', { name: /demo pack/i })
-  if (await demoBtn.count()) {
-    await demoBtn.click()
-    await page.waitForTimeout(700)
-  }
+  await enterWithDemoPack(page)
 
   await page.getByRole('button', { name: 'Home' }).click()
   await page.waitForTimeout(400)

@@ -5,6 +5,7 @@
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
+import { enterWithDemoPack } from './onboarding.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -39,26 +40,7 @@ await page.goto(base, { waitUntil: 'networkidle' })
 await page.evaluate(() => localStorage.clear())
 await page.reload({ waitUntil: 'networkidle' })
 
-const demoBtn = page.getByRole('button', { name: /demo pack/i })
-if (await demoBtn.count()) {
-  // Prefer native React click when pointer interception flakes
-  const clicked = await page.evaluate(() => {
-    const b = [...document.querySelectorAll('button')].find((x) =>
-      x.textContent?.includes('Enter with demo pack'),
-    )
-    if (!b) return false
-    const propKey = Object.keys(b).find((k) => k.startsWith('__reactProps'))
-    const p = propKey ? b[propKey] : null
-    if (p?.onClick) {
-      p.onClick({ preventDefault() {}, stopPropagation() {} })
-      return true
-    }
-    b.click()
-    return true
-  })
-  if (!clicked) await demoBtn.click({ force: true })
-  await page.waitForTimeout(1000)
-}
+await enterWithDemoPack(page)
 
 await page.waitForSelector('[data-testid="remote-toggle"]', { timeout: 15000 })
 

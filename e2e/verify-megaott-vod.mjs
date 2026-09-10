@@ -13,6 +13,7 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import { resolveArtifactDir, safeWriteFile, publishDir } from './artifactDir.mjs'
+import { enterWithDemoPack } from './onboarding.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -90,15 +91,14 @@ try {
   await page.evaluate(() => localStorage.clear())
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 })
 
-  const importBtn = page.getByRole('button', { name: /Import MegaOTT \/ M3U/i })
-  const settingsBtn = page.getByRole('button', { name: 'Settings' })
-  if (await importBtn.count()) {
-    await importBtn.click()
-  } else if (await settingsBtn.count()) {
-    await settingsBtn.click()
+  const connectBtn = page.getByTestId('onboarding-connect')
+  if (await connectBtn.count()) {
+    await connectBtn.click()
+    await page.getByRole('button', { name: /Skip to Settings/i }).click()
+  } else if (await page.getByRole('button', { name: 'Settings' }).count()) {
+    await page.getByRole('button', { name: 'Settings' }).click()
   } else {
-    const demoBtn = page.getByRole('button', { name: /demo pack/i })
-    if (await demoBtn.count()) await demoBtn.click()
+    await enterWithDemoPack(page)
     await page.getByRole('button', { name: 'Settings' }).click()
   }
   await page.waitForSelector('[data-testid="megaott-section"]', { timeout: 30_000 })

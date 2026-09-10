@@ -98,3 +98,41 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Accessibility: large text (Settings toggle). */
+html.a11y-large-text {
+  font-size: 112.5%;
+}
+html.a11y-large-text .font-display {
+  letter-spacing: -0.01em;
+}
+
+/* Accessibility: high contrast SteadyStream gold-on-black. */
+html.a11y-high-contrast {
+  --focus-ring: #f5dd82;
+}
+html.a11y-high-contrast body {
+  background: #000;
+  color: #f7f1df;
+}
+html.a11y-high-contrast .text-mist-300,
+html.a11y-high-contrast .text-mist-400 {
+  color: #efe4c4 !important;
+}
+html.a11y-high-contrast .border-white\/10,
+html.a11y-high-contrast .border-white\/15 {
+  border-color: rgba(212, 175, 55, 0.45) !important;
+}
+html.a11y-high-contrast button:focus,
+html.a11y-high-contrast [data-tv-focus]:focus {
+  outline-width: 3px;
+  outline-color: #f5dd82;
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

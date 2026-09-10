@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import { resolveArtifactDir, safeWriteFile } from './artifactDir.mjs'
+import { enterWithDemoPack } from './onboarding.mjs'
 
 function resolvePlaywright() {
   const require = createRequire(import.meta.url)
@@ -43,11 +44,7 @@ try {
   await page.evaluate(() => localStorage.clear())
   await page.reload({ waitUntil: 'networkidle' })
 
-  const demoBtn = page.getByRole('button', { name: /demo pack/i })
-  if (await demoBtn.count()) {
-    await demoBtn.click()
-    await page.waitForTimeout(800)
-  }
+  await enterWithDemoPack(page)
 
   // Multi-step agent: mute + remind
   await page.getByRole('button', { name: /^Assistant$/i }).click()
