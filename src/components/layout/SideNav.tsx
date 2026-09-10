@@ -1,0 +1,122 @@
+import { motion } from 'framer-motion'
+import {
+  Clapperboard,
+  Compass,
+  Grid2x2,
+  Heart,
+  Radio,
+  Settings,
+  Tv,
+} from 'lucide-react'
+import type { AppView } from '../../types/iptv'
+import { useIptvStore } from '../../store/useIptvStore'
+import { formatClock } from '../../lib/time'
+import { useEffect, useState } from 'react'
+
+const NAV: { id: AppView; label: string; icon: typeof Tv }[] = [
+  { id: 'home', label: 'Home', icon: Compass },
+  { id: 'live', label: 'Live TV', icon: Radio },
+  { id: 'guide', label: 'Guide', icon: Tv },
+  { id: 'vod', label: 'On Demand', icon: Clapperboard },
+  { id: 'multiview', label: 'Multi-view', icon: Grid2x2 },
+  { id: 'favorites', label: 'Favorites', icon: Heart },
+  { id: 'settings', label: 'Settings', icon: Settings },
+]
+
+export function SideNav({ overlay = false }: { overlay?: boolean }) {
+  const view = useIptvStore((s) => s.view)
+  const setView = useIptvStore((s) => s.setView)
+  const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
+  const prefs = useIptvStore((s) => s.prefs)
+  const [clock, setClock] = useState(formatClock())
+
+  useEffect(() => {
+    const t = window.setInterval(() => setClock(formatClock()), 15_000)
+    return () => window.clearInterval(t)
+  }, [])
+
+  const onNav = (id: AppView) => {
+    if (id === 'multiview') {
+      const layout = useIptvStore.getState().player.multiViewLayout
+      setMultiViewLayout(layout === 4 ? 4 : 2)
+      return
+    }
+    setView(id)
+  }
+
+  return (
+    <aside
+      className={`relative z-30 flex h-full w-[4.75rem] flex-col border-r border-white/8 backdrop-blur-xl md:w-56 ${
+        overlay
+          ? 'bg-ink-950/90 shadow-[8px_0_40px_rgba(0,0,0,0.45)]'
+          : 'bg-ink-900/90'
+      }`}
+    >
+      <div className="border-b border-white/8 px-3 py-5 md:px-5">
+        <div className="flex items-center gap-3">
+          <img
+            src="/brand/steadystream-mark.svg"
+            alt=""
+            className="h-10 w-10 rounded-xl ring-1 ring-ember-400/40"
+            width={40}
+            height={40}
+          />
+          <div className="hidden md:block">
+            <p className="font-display text-lg font-bold leading-none tracking-tight text-ember-400">
+              SteadyStream
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
+              Premium IPTV
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-1 p-2 md:p-3">
+        {NAV.map((item) => {
+          const active = view === item.id
+          const Icon = item.icon
+          return (
+            <button
+              key={item.id}
+              type="button"
+              data-tv-focus
+              onClick={() => onNav(item.id)}
+              className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition focus-visible:focus-ring ${
+                active
+                  ? 'bg-ember-500/15 text-sand-50'
+                  : 'text-mist-300 hover:bg-white/5 hover:text-sand-50'
+              }`}
+            >
+              {active && (
+                <motion.span
+                  layoutId="nav-pill"
+                  className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30"
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                />
+              )}
+              <Icon
+                size={20}
+                className={`relative z-10 shrink-0 ${active ? 'text-ember-400' : ''}`}
+              />
+              <span className="relative z-10 hidden text-sm font-medium md:inline">
+                {item.label}
+              </span>
+            </button>
+          )
+        })}
+      </nav>
+
+      {prefs.showClock && (
+        <div className="hidden border-t border-white/8 px-5 py-4 md:block">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-mist-400">
+            Local
+          </p>
+          <p className="mt-1 font-display text-2xl font-semibold tabular-nums">
+            {clock}
+          </p>
+        </div>
+      )}
+    </aside>
+  )
+}

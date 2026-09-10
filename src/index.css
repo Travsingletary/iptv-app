@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --focus-ring: #d4af37;
+  --ss-gold: #d4af37;
+  --ss-gold-dark: #b8860b;
+  --ss-black: #000000;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: theme('fontFamily.body');
+  background: #000000;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.28);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.55);
+}
+
+@layer components {
+  .focus-ring {
+    @apply outline-none ring-2 ring-ember-400/90 ring-offset-2 ring-offset-ink-950;
+  }
+
+  /*
+   * Fire Stick / lean-back: always-visible focus rings (not only :focus-visible).
+   * Remotes move focus without mouse hover; rings must stay readable on dark UI.
+   */
+  button:focus,
+  a:focus,
+  input:focus,
+  select:focus,
+  textarea:focus,
+  [tabindex]:focus,
+  [data-tv-focus]:focus,
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+
+  .tv-focus-ring:focus,
+  .tv-focus-ring:focus-visible {
+    @apply outline-none ring-2 ring-ember-400 ring-offset-2 ring-offset-ink-950;
+  }
+
+  .focus-visible\:focus-ring:focus {
+    @apply outline-none ring-2 ring-ember-400/90 ring-offset-2 ring-offset-ink-950;
+  }
+
+  .glass-panel {
+    @apply border border-white/10 bg-ink-900/75 backdrop-blur-xl;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .rail-mask {
+    mask-image: linear-gradient(90deg, transparent, #000 2%, #000 96%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Accessibility: large text (Settings toggle). */
+html.a11y-large-text {
+  font-size: 112.5%;
+}
+html.a11y-large-text .font-display {
+  letter-spacing: -0.01em;
+}
+
+/* Accessibility: high contrast SteadyStream gold-on-black. */
+html.a11y-high-contrast {
+  --focus-ring: #f5dd82;
+}
+html.a11y-high-contrast body {
+  background: #000;
+  color: #f7f1df;
+}
+html.a11y-high-contrast .text-mist-300,
+html.a11y-high-contrast .text-mist-400 {
+  color: #efe4c4 !important;
+}
+html.a11y-high-contrast .border-white\/10,
+html.a11y-high-contrast .border-white\/15 {
+  border-color: rgba(212, 175, 55, 0.45) !important;
+}
+html.a11y-high-contrast button:focus,
+html.a11y-high-contrast [data-tv-focus]:focus {
+  outline-width: 3px;
+  outline-color: #f5dd82;
+}
+
+html.a11y-reduce-motion *,
+html.a11y-reduce-motion *::before,
+html.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}

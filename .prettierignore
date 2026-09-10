@@ -1,0 +1,7 @@
+dist
+node_modules
+android
+coverage
+*.min.js
+package-lock.json
+server/.assistant-core.bundle.mjs
