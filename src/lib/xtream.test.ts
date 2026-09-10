@@ -36,6 +36,7 @@ describe('xtream', () => {
     )
     expect(result.usedDemoFallback).toBe(true)
     expect(result.channels.length).toBeGreaterThan(0)
+    expect(result.vodCategories.length).toBeGreaterThan(0)
     expect(result.message).toMatch(/MegaOTT unavailable/i)
     expect(result.message).toMatch(/demo pack/i)
   })

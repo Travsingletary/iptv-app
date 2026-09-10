@@ -2,7 +2,7 @@
  * Xtream Codes–compatible API client (MegaOTT and other panels) with demo fallback.
  * Spec: player_api.php?username=&password=&action=
  */
-import type { Channel, ContentKind, PlaylistSource } from '../types/iptv.js'
+import type { Channel, ContentKind, PlaylistSource, VodCategory } from '../types/iptv.js'
 import { normalizeCategory } from './categories.js'
 import { DEMO_CHANNELS, DEMO_SOURCE, refreshDemoEpg } from './demoData.js'
 import {
@@ -11,6 +11,7 @@ import {
   providerDisplayName,
   type PanelProvider,
 } from './panelCredentials.js'
+import { demoVodCategoriesFromChannels, rankVodCategories } from './vodCatalog.js'
 
 export interface XtreamCredentials {
   server: string
@@ -24,11 +25,22 @@ export interface XtreamIngestResult {
   ok: boolean
   source: PlaylistSource
   channels: Channel[]
+  /** Movie/series categories for on-demand lazy browse (not full catalogs). */
+  vodCategories: VodCategory[]
   usedDemoFallback: boolean
   message: string
   liveCount: number
   vodCount: number
   seriesCount: number
+  /** True when full VOD/series catalogs were skipped in favor of category lists. */
+  vodDeferred: boolean
+}
+
+export interface VodCategoryLoadResult {
+  ok: boolean
+  category: VodCategory
+  channels: Channel[]
+  message: string
 }
 
 export interface CatchupPlayback {
@@ -62,6 +74,13 @@ interface XtreamStreamRow {
   plot?: string
   cover?: string
   stream_type?: string
+  year?: string | number
+}
+
+interface XtreamCategoryRow {
+  category_id?: string | number
+  category_name?: string
+  parent_id?: string | number
 }
 
 function normalizeServer(server: string): string {
@@ -128,17 +147,25 @@ function mapRow(
   creds: XtreamCredentials,
   kind: ContentKind,
   groupFallback: string,
+  categoryId?: string | number,
 ): Channel | null {
   const streamId = rowStreamId(row, kind)
   if (streamId == null || !row.name) return null
   const ext =
     row.container_extension ||
-    (kind === 'live' ? 'ts' : 'm3u8')
+    (kind === 'live' ? 'ts' : 'mp4')
   const streamKind = kind === 'live' ? 'live' : kind === 'series' ? 'series' : 'movie'
   const archiveHours = Number(row.tv_archive_duration)
   const provider = resolveProvider(creds)
   const idPrefix = provider === 'megaott' ? 'megaott' : 'xtream'
   const group = row.category_name || groupFallback
+  const yearNum = Number(row.year)
+  const providerCategoryId =
+    categoryId != null
+      ? String(categoryId)
+      : row.category_id != null
+        ? String(row.category_id)
+        : undefined
   return {
     id: `${idPrefix}_${kind}_${streamId}`,
     name: row.name,
@@ -152,10 +179,34 @@ function mapRow(
     poster: row.cover || row.stream_icon,
     rating: row.rating,
     description: row.plot,
+    year: Number.isFinite(yearNum) && yearNum > 1900 ? yearNum : undefined,
     quality: kind === 'live' ? 'HD' : undefined,
     streamId: String(streamId),
     archiveDurationHours: Number.isFinite(archiveHours) && archiveHours > 0 ? archiveHours : undefined,
+    providerCategoryId,
+    containerExtension: ext,
   }
+}
+
+export function mapXtreamCategoryRows(
+  rows: XtreamCategoryRow[],
+  kind: 'movie' | 'series',
+): VodCategory[] {
+  const out: VodCategory[] = []
+  for (const row of rows) {
+    if (row.category_id == null || !row.category_name) continue
+    out.push({
+      id: String(row.category_id),
+      name: row.category_name,
+      kind,
+      normalized: normalizeCategory(row.category_name),
+      parentId:
+        row.parent_id != null && String(row.parent_id) !== '0'
+          ? String(row.parent_id)
+          : undefined,
+    })
+  }
+  return rankVodCategories(out)
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -176,8 +227,9 @@ async function fetchAction(
   creds: XtreamCredentials,
   action: string,
   signal?: AbortSignal,
+  extra: Record<string, string> = {},
 ): Promise<XtreamStreamRow[]> {
-  const url = buildXtreamApiUrl(creds, action)
+  const url = buildXtreamApiUrl(creds, action, extra)
   let res: Response
   try {
     res = await fetch(url, { signal })
@@ -198,11 +250,20 @@ async function fetchAction(
   // Some panels wrap lists: { streams: [...] } or { data: [...] }
   if (json && typeof json === 'object') {
     const obj = json as Record<string, unknown>
-    for (const key of ['streams', 'data', 'movies', 'series', 'channels']) {
+    for (const key of ['streams', 'data', 'movies', 'series', 'channels', 'categories']) {
       if (Array.isArray(obj[key])) return obj[key] as XtreamStreamRow[]
     }
   }
   return []
+}
+
+async function fetchCategoryRows(
+  creds: XtreamCredentials,
+  action: 'get_vod_categories' | 'get_series_categories',
+  signal?: AbortSignal,
+): Promise<XtreamCategoryRow[]> {
+  const rows = await fetchAction(creds, action, signal)
+  return rows as XtreamCategoryRow[]
 }
 
 async function authenticate(
@@ -246,7 +307,9 @@ export function formatXtreamError(err: unknown): string {
 }
 
 /**
- * Ingest live + VOD + series from a MegaOTT / Xtream-compatible panel.
+ * Ingest live channels + VOD/series *category lists* from a MegaOTT / Xtream panel.
+ * Full VOD/series catalogs are intentionally deferred — load per category on demand
+ * so large panels (~7k live + tens of thousands of VOD) do not freeze the browser.
  * On network/auth failure, returns demo pack with usedDemoFallback=true.
  */
 export async function ingestXtream(
@@ -254,7 +317,7 @@ export async function ingestXtream(
   options: { signal?: AbortSignal; demoOnFailure?: boolean; timeoutMs?: number } = {},
 ): Promise<XtreamIngestResult> {
   const demoOnFailure = options.demoOnFailure !== false
-  // Large MegaOTT panels (tens of thousands of VOD/series rows) need a long window.
+  // Live catalogs on MegaOTT can be large; categories are light.
   const timeoutMs = options.timeoutMs ?? 90_000
   const provider = resolveProvider(creds)
   const label = providerDisplayName(provider)
@@ -266,11 +329,13 @@ export async function ingestXtream(
       ok: false,
       source: { ...DEMO_SOURCE, createdAt: Date.now() },
       channels: DEMO_CHANNELS,
+      vodCategories: demoVodCategoriesFromChannels(DEMO_CHANNELS),
       usedDemoFallback: true,
       message: `${label} unavailable (${err.message}). Loaded demo pack instead.`,
       liveCount: DEMO_CHANNELS.filter((c) => c.kind === 'live').length,
       vodCount: DEMO_CHANNELS.filter((c) => c.kind === 'movie').length,
       seriesCount: DEMO_CHANNELS.filter((c) => c.kind === 'series').length,
+      vodDeferred: false,
     }
   }
 
@@ -294,59 +359,42 @@ export async function ingestXtream(
       const ok = await authenticate(creds, signal)
       if (!ok) throw new Error(`${label} authentication failed — invalid username/password`)
 
-      // Live is required for a successful connect. VOD/series are best-effort so a
-      // huge catalog or slow panel still yields watchable live channels.
       const liveRows = await fetchAction(creds, 'get_live_streams', signal)
       const live = liveRows
         .map((row) => mapRow(row, creds, 'live', 'Live'))
         .filter((c): c is Channel => Boolean(c))
       if (!live.length) throw new Error(`${label} returned no live streams`)
 
-      // Browser memory / localStorage choke on 50k+ VOD rows. Prefer live when the
-      // live catalog is already large; still try a capped VOD/series pull otherwise.
-      const LARGE_LIVE_THRESHOLD = 2_000
-      const MAX_VOD_SERIES_ROWS = 3_000
-      let vod: Channel[] = []
-      let series: Channel[] = []
+      let vodCategories: VodCategory[] = []
       let catalogNote = ''
-      if (live.length >= LARGE_LIVE_THRESHOLD) {
-        catalogNote =
-          ' VOD/series deferred (large live catalog — reconnect later or use M3U for on-demand).'
-      } else {
-        try {
-          const [vodRows, seriesRows] = await Promise.all([
-            fetchAction(creds, 'get_vod_streams', signal),
-            fetchAction(creds, 'get_series', signal),
-          ])
-          const vodMapped = vodRows
-            .slice(0, MAX_VOD_SERIES_ROWS)
-            .map((row) => mapRow(row, creds, 'movie', 'VOD'))
-            .filter((c): c is Channel => Boolean(c))
-          const seriesMapped = seriesRows
-            .slice(0, MAX_VOD_SERIES_ROWS)
-            .map((row) => mapRow(row, creds, 'series', 'Series'))
-            .filter((c): c is Channel => Boolean(c))
-          vod = vodMapped
-          series = seriesMapped
-          if (vodRows.length > MAX_VOD_SERIES_ROWS || seriesRows.length > MAX_VOD_SERIES_ROWS) {
-            catalogNote = ` VOD/series capped at ${MAX_VOD_SERIES_ROWS} each for browser performance.`
-          }
-        } catch (catalogErr) {
-          catalogNote = ` VOD/series skipped (${formatXtreamError(catalogErr)}).`
-        }
+      let vodDeferred = true
+      try {
+        const [vodCatRows, seriesCatRows] = await Promise.all([
+          fetchCategoryRows(creds, 'get_vod_categories', signal),
+          fetchCategoryRows(creds, 'get_series_categories', signal).catch(() => [] as XtreamCategoryRow[]),
+        ])
+        const movieCats = mapXtreamCategoryRows(vodCatRows, 'movie')
+        const seriesCats = mapXtreamCategoryRows(seriesCatRows, 'series')
+        vodCategories = [...movieCats, ...seriesCats]
+        catalogNote = ` VOD lazy: ${movieCats.length} movie + ${seriesCats.length} series categories (titles load on browse).`
+        vodDeferred = true
+      } catch (catalogErr) {
+        catalogNote = ` VOD categories skipped (${formatXtreamError(catalogErr)}).`
+        vodDeferred = true
       }
 
-      const channels = [...live, ...vod, ...series]
       const archiveCount = live.filter((c) => c.catchup).length
       return {
         ok: true,
         source: sourceBase,
-        channels,
+        channels: live,
+        vodCategories,
         usedDemoFallback: false,
-        message: `Imported ${live.length} live (${archiveCount} with catch-up), ${vod.length} VOD, ${series.length} series from ${label}.${catalogNote}`,
+        message: `Imported ${live.length} live (${archiveCount} with catch-up) from ${label}.${catalogNote}`,
         liveCount: live.length,
-        vodCount: vod.length,
-        seriesCount: series.length,
+        vodCount: 0,
+        seriesCount: 0,
+        vodDeferred,
       }
     } finally {
       clearTimeout(timer)
@@ -362,12 +410,109 @@ export async function ingestXtream(
       ok: false,
       source: { ...DEMO_SOURCE, createdAt: Date.now() },
       channels: DEMO_CHANNELS,
+      vodCategories: demoVodCategoriesFromChannels(DEMO_CHANNELS),
       usedDemoFallback: true,
       message: `${label} unavailable (${formatXtreamError(err)}). Loaded demo pack instead.`,
       liveCount: DEMO_CHANNELS.filter((c) => c.kind === 'live').length,
       vodCount: DEMO_CHANNELS.filter((c) => c.kind === 'movie').length,
       seriesCount: DEMO_CHANNELS.filter((c) => c.kind === 'series').length,
+      vodDeferred: false,
     }
+  }
+}
+
+/**
+ * Load movie or series titles for one panel category (lazy / on-demand).
+ */
+export async function loadXtreamVodCategory(
+  creds: XtreamCredentials,
+  category: VodCategory,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<VodCategoryLoadResult> {
+  const timeoutMs = options.timeoutMs ?? 60_000
+  const label = providerDisplayName(resolveProvider(creds))
+
+  const run = async (): Promise<VodCategoryLoadResult> => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const onParentAbort = () => controller.abort()
+    options.signal?.addEventListener('abort', onParentAbort)
+    try {
+      const signal = controller.signal
+      const action = category.kind === 'series' ? 'get_series' : 'get_vod_streams'
+      const rows = await fetchAction(creds, action, signal, {
+        category_id: String(category.id),
+      })
+      const channels = rows
+        .map((row) =>
+          mapRow(row, creds, category.kind, category.name, category.id),
+        )
+        .filter((c): c is Channel => Boolean(c))
+      return {
+        ok: true,
+        category,
+        channels,
+        message: `Loaded ${channels.length} ${category.kind === 'series' ? 'series' : 'titles'} in “${category.name}”.`,
+      }
+    } finally {
+      clearTimeout(timer)
+      options.signal?.removeEventListener('abort', onParentAbort)
+    }
+  }
+
+  try {
+    return await withTimeout(run(), timeoutMs + 2_000, `${label} VOD category`)
+  } catch (err) {
+    return {
+      ok: false,
+      category,
+      channels: [],
+      message: `Could not load “${category.name}” (${formatXtreamError(err)}).`,
+    }
+  }
+}
+
+/**
+ * Resolve a playable episode URL for a series title via get_series_info.
+ * Prefers season 1 / earliest episode when available.
+ */
+export async function resolveSeriesPlaybackUrl(
+  creds: XtreamCredentials,
+  seriesId: string | number,
+  options: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<{ url: string; label: string; episodeId: string; extension: string } | null> {
+  const timeoutMs = options.timeoutMs ?? 30_000
+  const run = async () => {
+    const url = buildXtreamApiUrl(creds, 'get_series_info', {
+      series_id: String(seriesId),
+    })
+    const res = await fetch(url, { signal: options.signal })
+    if (!res.ok) throw new Error(`get_series_info HTTP ${res.status}`)
+    const json = (await res.json()) as {
+      episodes?: Record<string, Array<{ id?: string | number; title?: string; container_extension?: string }>>
+    }
+    const episodes = json.episodes
+    if (!episodes || typeof episodes !== 'object') return null
+    const seasons = Object.keys(episodes).sort((a, b) => Number(a) - Number(b))
+    for (const season of seasons) {
+      const list = episodes[season]
+      if (!Array.isArray(list) || !list.length) continue
+      const ep = list[0]
+      if (ep?.id == null) continue
+      const ext = ep.container_extension || 'mp4'
+      return {
+        url: buildXtreamStreamUrl(creds, 'series', ep.id, ext),
+        label: ep.title || `S${season}E1`,
+        episodeId: String(ep.id),
+        extension: ext,
+      }
+    }
+    return null
+  }
+  try {
+    return await withTimeout(run(), timeoutMs, 'series info')
+  } catch {
+    return null
   }
 }
 

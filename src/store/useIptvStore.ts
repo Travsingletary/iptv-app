@@ -1,9 +1,21 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { DEMO_CHANNELS, DEMO_EPG, DEMO_SOURCE, refreshDemoEpg } from '../lib/demoData'
-import { ingestXtream, xtreamDemoEpg, resolveCatchupPlayback, type XtreamCredentials } from '../lib/xtream'
+import {
+  ingestXtream,
+  loadXtreamVodCategory,
+  resolveSeriesPlaybackUrl,
+  xtreamDemoEpg,
+  resolveCatchupPlayback,
+  type XtreamCredentials,
+} from '../lib/xtream'
 import { parseM3U } from '../lib/m3u'
 import { trackEvent } from '../lib/eventLogger'
+import {
+  demoVodCategoriesFromChannels,
+  mergeChannelsById,
+  removeChannelsForCategory,
+} from '../lib/vodCatalog'
 import type {
   AppView,
   Channel,
@@ -12,6 +24,7 @@ import type {
   PlaylistSource,
   ProgramReminder,
   UiPrefs,
+  VodCategory,
 } from '../types/iptv'
 import {
   createReminder,
@@ -58,6 +71,12 @@ interface IptvState {
   sources: PlaylistSource[]
   activeSourceId: string
   channels: Channel[]
+  /** Lazy VOD/series categories from MegaOTT (titles load on demand). */
+  vodCategories: VodCategory[]
+  /** Category ids that have been fetched into `channels`. */
+  vodLoadedCategoryIds: string[]
+  vodLoadingCategoryId: string | null
+  vodLoadError: string | null
   epg: EpgProgram[]
   favorites: string[]
   recentIds: string[]
@@ -89,6 +108,8 @@ interface IptvState {
   importM3UText: (name: string, text: string, epgUrl?: string) => void
   importM3UUrl: (name: string, url: string, epgUrl?: string) => Promise<void>
   importXtream: (creds: XtreamCredentials) => Promise<{ message: string; usedDemoFallback: boolean }>
+  loadVodCategory: (categoryId: string) => Promise<{ message: string; ok: boolean }>
+  playVodTitle: (channelId: string) => Promise<void>
   removeSource: (id: string) => void
   startCatchup: (minutesAgo: number) => void
   clearCatchup: () => void
@@ -148,6 +169,10 @@ export const useIptvStore = create<IptvState>()(
       sources: [DEMO_SOURCE],
       activeSourceId: DEMO_SOURCE.id,
       channels: DEMO_CHANNELS,
+      vodCategories: demoVodCategoriesFromChannels(DEMO_CHANNELS),
+      vodLoadedCategoryIds: demoVodCategoriesFromChannels(DEMO_CHANNELS).map((c) => c.id),
+      vodLoadingCategoryId: null,
+      vodLoadError: null,
       epg: DEMO_EPG,
       favorites: ['live_aether_one', 'live_arena_sports'],
       recentIds: [],
@@ -408,6 +433,10 @@ export const useIptvStore = create<IptvState>()(
           sources: [DEMO_SOURCE],
           activeSourceId: DEMO_SOURCE.id,
           channels: DEMO_CHANNELS,
+          vodCategories: demoVodCategoriesFromChannels(DEMO_CHANNELS),
+          vodLoadedCategoryIds: demoVodCategoriesFromChannels(DEMO_CHANNELS).map((c) => c.id),
+          vodLoadingCategoryId: null,
+          vodLoadError: null,
           epg: refreshDemoEpg(),
           onboarded: true,
           view: 'home',
@@ -425,10 +454,15 @@ export const useIptvStore = create<IptvState>()(
           createdAt: Date.now(),
         }
         const stayOnSettings = get().view === 'settings'
+        const vodCategories = demoVodCategoriesFromChannels(parsed)
         set({
           sources: [...get().sources.filter((s) => s.type !== 'demo'), source],
           activeSourceId: source.id,
           channels: parsed,
+          vodCategories,
+          vodLoadedCategoryIds: vodCategories.map((c) => c.id),
+          vodLoadingCategoryId: null,
+          vodLoadError: null,
           epg: [],
           onboarded: true,
           view: stayOnSettings ? 'settings' : 'home',
@@ -451,10 +485,15 @@ export const useIptvStore = create<IptvState>()(
           createdAt: Date.now(),
         }
         const stayOnSettings = get().view === 'settings'
+        const vodCategories = demoVodCategoriesFromChannels(parsed)
         set({
           sources: [...get().sources.filter((s) => s.type !== 'demo'), source],
           activeSourceId: source.id,
           channels: parsed,
+          vodCategories,
+          vodLoadedCategoryIds: vodCategories.map((c) => c.id),
+          vodLoadingCategoryId: null,
+          vodLoadError: null,
           epg: [],
           onboarded: true,
           view: stayOnSettings ? 'settings' : 'home',
@@ -466,10 +505,17 @@ export const useIptvStore = create<IptvState>()(
         const result = await ingestXtream(creds)
         const stayOnSettings = get().view === 'settings'
         if (result.usedDemoFallback) {
+          const demoCats = result.vodCategories.length
+            ? result.vodCategories
+            : demoVodCategoriesFromChannels(DEMO_CHANNELS)
           set({
             sources: [DEMO_SOURCE],
             activeSourceId: DEMO_SOURCE.id,
             channels: DEMO_CHANNELS,
+            vodCategories: demoCats,
+            vodLoadedCategoryIds: demoCats.map((c) => c.id),
+            vodLoadingCategoryId: null,
+            vodLoadError: null,
             epg: xtreamDemoEpg(),
             onboarded: true,
             view: stayOnSettings ? 'settings' : 'home',
@@ -480,6 +526,10 @@ export const useIptvStore = create<IptvState>()(
             sources: [...get().sources.filter((s) => s.type !== 'demo'), result.source],
             activeSourceId: result.source.id,
             channels: result.channels,
+            vodCategories: result.vodCategories,
+            vodLoadedCategoryIds: [],
+            vodLoadingCategoryId: null,
+            vodLoadError: null,
             epg: [],
             onboarded: true,
             view: stayOnSettings ? 'settings' : 'home',
@@ -487,6 +537,107 @@ export const useIptvStore = create<IptvState>()(
           })
         }
         return { message: result.message, usedDemoFallback: result.usedDemoFallback }
+      },
+
+      loadVodCategory: async (categoryId) => {
+        const state = get()
+        const category = state.vodCategories.find((c) => c.id === categoryId)
+        if (!category) {
+          return { ok: false, message: 'Unknown VOD category' }
+        }
+
+        if (category.id.startsWith('demo_')) {
+          set((s) => ({
+            vodLoadedCategoryIds: s.vodLoadedCategoryIds.includes(categoryId)
+              ? s.vodLoadedCategoryIds
+              : [...s.vodLoadedCategoryIds, categoryId],
+            vodLoadError: null,
+            vodLoadingCategoryId: null,
+          }))
+          return { ok: true, message: `Showing “${category.name}”.` }
+        }
+
+        const source =
+          state.sources.find((src) => src.id === state.activeSourceId) ??
+          state.sources.find((src) => src.type === 'megaott' || src.type === 'xtream')
+        if (!source?.url || !source.username || !source.password) {
+          const msg = 'Connect MegaOTT in Settings to load on-demand categories.'
+          set({ vodLoadError: msg, vodLoadingCategoryId: null })
+          return { ok: false, message: msg }
+        }
+
+        if (state.vodLoadedCategoryIds.includes(categoryId)) {
+          return { ok: true, message: `“${category.name}” already loaded.` }
+        }
+
+        set({ vodLoadingCategoryId: categoryId, vodLoadError: null })
+        const result = await loadXtreamVodCategory(
+          {
+            server: source.url,
+            username: source.username,
+            password: source.password,
+            provider: source.type === 'megaott' ? 'megaott' : 'xtream',
+          },
+          category,
+        )
+
+        if (!result.ok) {
+          set({ vodLoadingCategoryId: null, vodLoadError: result.message })
+          return { ok: false, message: result.message }
+        }
+
+        set((s) => {
+          const without = removeChannelsForCategory(s.channels, categoryId, category.kind)
+          return {
+            channels: mergeChannelsById(without, result.channels),
+            vodLoadedCategoryIds: s.vodLoadedCategoryIds.includes(categoryId)
+              ? s.vodLoadedCategoryIds
+              : [...s.vodLoadedCategoryIds, categoryId],
+            vodLoadingCategoryId: null,
+            vodLoadError: null,
+          }
+        })
+        return { ok: true, message: result.message }
+      },
+
+      playVodTitle: async (channelId) => {
+        const state = get()
+        const channel = state.channels.find((c) => c.id === channelId)
+        if (!channel) return
+
+        if (channel.kind === 'series' && channel.streamId) {
+          const source =
+            state.sources.find((src) => src.id === state.activeSourceId) ??
+            state.sources.find((src) => src.type === 'megaott' || src.type === 'xtream')
+          if (source?.url && source.username && source.password) {
+            const episode = await resolveSeriesPlaybackUrl(
+              {
+                server: source.url,
+                username: source.username,
+                password: source.password,
+                provider: source.type === 'megaott' ? 'megaott' : 'xtream',
+              },
+              channel.streamId,
+            )
+            if (episode) {
+              set((s) => ({
+                channels: s.channels.map((c) =>
+                  c.id === channelId
+                    ? {
+                        ...c,
+                        url: episode.url,
+                        containerExtension: episode.extension,
+                        description: c.description || episode.label,
+                      }
+                    : c,
+                ),
+              }))
+            }
+          }
+        }
+
+        get().playChannel(channelId)
+        set({ view: 'vod', menuOpen: false })
       },
 
       removeSource: (id) => {
@@ -653,17 +804,26 @@ export const useIptvStore = create<IptvState>()(
     }),
     {
       name: 'aether-iptv-v2',
-      partialize: (s) => ({
-        onboarded: s.onboarded,
-        favorites: s.favorites,
-        recentIds: s.recentIds,
-        prefs: s.prefs,
-        sources: s.sources,
-        activeSourceId: s.activeSourceId,
-        profiles: s.profiles,
-        // Persist demo or keep channels for m3u imports when small enough
-        channels: s.channels.length < 500 ? s.channels : s.channels.slice(0, 500),
-      }),
+      partialize: (s) => {
+        const live = s.channels.filter((c) => c.kind === 'live')
+        const vod = s.channels.filter((c) => c.kind !== 'live')
+        // Prefer live for persistence; keep a small VOD slice if room remains.
+        const persistChannels =
+          s.channels.length < 500
+            ? s.channels
+            : [...live, ...vod].slice(0, 500)
+        return {
+          onboarded: s.onboarded,
+          favorites: s.favorites,
+          recentIds: s.recentIds,
+          prefs: s.prefs,
+          sources: s.sources,
+          activeSourceId: s.activeSourceId,
+          profiles: s.profiles,
+          vodCategories: s.vodCategories,
+          channels: persistChannels,
+        }
+      },
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<IptvState>
         const merged = { ...current, ...saved }
@@ -673,6 +833,18 @@ export const useIptvStore = create<IptvState>()(
           merged.activeSourceId = DEMO_SOURCE.id
           merged.channels = DEMO_CHANNELS
           merged.epg = refreshDemoEpg()
+          merged.vodCategories = demoVodCategoriesFromChannels(DEMO_CHANNELS)
+          merged.vodLoadedCategoryIds = merged.vodCategories.map((c) => c.id)
+        } else {
+          merged.vodCategories = saved.vodCategories ?? []
+          // Lazy categories need a fresh fetch after reload.
+          merged.vodLoadedCategoryIds = (saved.vodCategories ?? [])
+            .filter((c) => c.id.startsWith('demo_'))
+            .map((c) => c.id)
+          // Drop persisted VOD titles that came from panel (re-load on browse).
+          if (merged.sources.some((src) => src.type === 'megaott' || src.type === 'xtream')) {
+            merged.channels = (saved.channels ?? merged.channels).filter((c) => c.kind === 'live')
+          }
         }
         if (saved.profiles?.profiles?.length) {
           merged.profiles = saved.profiles

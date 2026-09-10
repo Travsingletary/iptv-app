@@ -23,6 +23,24 @@ function isMpegTsUrl(url: string): boolean {
   }
 }
 
+function isProgressiveUrl(url: string): boolean {
+  try {
+    const path = new URL(url, 'http://local').pathname.toLowerCase()
+    return /\.(mp4|webm|ogg|mov)($|\?)/i.test(path)
+  } catch {
+    return /\.(mp4|webm|ogg|mov)($|\?)/i.test(url)
+  }
+}
+
+function isMatroskaUrl(url: string): boolean {
+  try {
+    const path = new URL(url, 'http://local').pathname.toLowerCase()
+    return path.endsWith('.mkv')
+  } catch {
+    return /\.mkv($|\?)/i.test(url)
+  }
+}
+
 export function VideoPlayer({
   className = '',
   onReady,
@@ -101,18 +119,28 @@ export function VideoPlayer({
     video.addEventListener('ended', onEnded)
 
     const useMpegTs = isMpegTsUrl(streamUrl) && mpegts.getFeatureList().mseLivePlayback
+    const isLiveKind = activeChannel.kind === 'live'
+    const useProgressive = isProgressiveUrl(streamUrl)
+    const useMatroska = isMatroskaUrl(streamUrl)
 
-    if (useMpegTs) {
+    if (useMatroska) {
+      // Chromium cannot decode Matroska in <video>; surface a clear error.
+      if (!silent) {
+        setStreamError(
+          'This title is Matroska (.mkv). The browser cannot play it — try another title or an MP4/HLS source.',
+        )
+      }
+    } else if (useMpegTs) {
       const player = mpegts.createPlayer(
         {
           type: 'mse',
-          isLive: true,
+          isLive: isLiveKind,
           url: streamUrl,
         },
         {
           enableWorker: true,
-          stashInitialSize: 128,
-          liveBufferLatencyChasing: true,
+          stashInitialSize: isLiveKind ? 128 : 384,
+          liveBufferLatencyChasing: isLiveKind,
         },
       )
       mpegtsRef.current = player
@@ -126,10 +154,15 @@ export function VideoPlayer({
       void video.play().catch(() => {
         if (!silent) setPlayer({ paused: true, buffering: false })
       })
+    } else if (useProgressive) {
+      video.src = streamUrl
+      void video.play().catch(() => {
+        if (!silent) setPlayer({ paused: true, buffering: false })
+      })
     } else if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
+        lowLatencyMode: isLiveKind,
         backBufferLength: 30,
       })
       hlsRef.current = hls
@@ -151,7 +184,7 @@ export function VideoPlayer({
         if (!silent) setPlayer({ paused: true, buffering: false })
       })
     } else if (!silent) {
-      setPlayer({ error: 'HLS is not supported in this browser.', buffering: false })
+      setPlayer({ error: 'Playback is not supported in this browser.', buffering: false })
     }
 
     return () => {

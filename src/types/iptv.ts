@@ -27,6 +27,20 @@ export interface Channel {
   streamId?: string
   /** Hours of archive when panel advertises tv_archive_duration. */
   archiveDurationHours?: number
+  /** Xtream/MegaOTT category_id for lazy VOD loads. */
+  providerCategoryId?: string
+  /** Container hint from panel (mp4, mkv, m3u8, ts). */
+  containerExtension?: string
+}
+
+/** Lazy VOD/series category from MegaOTT / Xtream `get_*_categories`. */
+export interface VodCategory {
+  id: string
+  name: string
+  kind: 'movie' | 'series'
+  /** Normalized browse bucket when useful. */
+  normalized?: string
+  parentId?: string
 }
 
 export interface EpgProgram {
