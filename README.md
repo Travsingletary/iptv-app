@@ -4,15 +4,15 @@ A cable / Netflix-style IPTV experience for the web: live TV, electronic program
 
 ## Phase map
 
-| Phase | Status | Highlights | Verify |
-| --- | --- | --- | --- |
-| 1 | Done | Assistant panel, telemetry, For You Now, `/api/assistant` (Live AI when keyed) | `npm test` / `npm run verify:phase1` |
-| 2 | Done | Voice intents, reminders, stream fallback chips | `npm run verify:phase2` |
-| 3 | Done | Agent loop, automation rules, provider adapter, reminder sync | `npm run verify:phase3` |
-| 4 | Done | Real LLM tools loop (API key), household profiles, NL EPG, reminder UX | `npm run verify:phase4` |
-| 5 | Done | MegaOTT / Xtream-compatible login, catch-up stub, 2/4-up multi-view, TV focus | `npm run verify:phase5` |
-| 6 | Done | Supabase RLS notes, CI e2e suite, README/env docs | `npm run verify:phase6` / `npm run test:e2e` |
-| Finish | Done | Auth UI, AI mode indicator, MegaOTT/catch-up harden, multi-view audio | `npm run verify:finish` |
+| Phase  | Status | Highlights                                                                     | Verify                                       |
+| ------ | ------ | ------------------------------------------------------------------------------ | -------------------------------------------- |
+| 1      | Done   | Assistant panel, telemetry, For You Now, `/api/assistant` (Live AI when keyed) | `npm test` / `npm run verify:phase1`         |
+| 2      | Done   | Voice intents, reminders, stream fallback chips                                | `npm run verify:phase2`                      |
+| 3      | Done   | Agent loop, automation rules, provider adapter, reminder sync                  | `npm run verify:phase3`                      |
+| 4      | Done   | Real LLM tools loop (API key), household profiles, NL EPG, reminder UX         | `npm run verify:phase4`                      |
+| 5      | Done   | MegaOTT / Xtream-compatible login, catch-up stub, 2/4-up multi-view, TV focus  | `npm run verify:phase5`                      |
+| 6      | Done   | Supabase RLS notes, CI e2e suite, README/env docs                              | `npm run verify:phase6` / `npm run test:e2e` |
+| Finish | Done   | Auth UI, AI mode indicator, MegaOTT/catch-up harden, multi-view audio          | `npm run verify:finish`                      |
 
 Verify-before-building is enforced in `AGENTS.md` and `documents/ai_memory/ai_memory.md`.
 
@@ -40,7 +40,21 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL, choose **Enter with demo pack**, then browse Home / Live / Guide / On Demand / Multi-view.
+Open the printed local URL, choose **Enter with demo pack** (or **Add MegaOTT / playlist**), complete the short tour, then browse Home / Live / Guide / On Demand / Multi-view.
+
+### Collaborator checklist
+
+```bash
+npm install
+cp .env.example .env.local   # optional AI / Supabase keys — never commit secrets
+npm run lint                 # oxlint
+npm run format:check         # prettier
+npm test                     # vitest (playlist parsing + playback helpers + …)
+npm run build
+npm run dev                  # Vite + /api/assistant middleware
+```
+
+Accessibility: Settings → **Large text** / **High contrast** (plus Reduce motion). Fire Stick D-pad map: `docs/FIRE_STICK_REMOTE.md`. Playback containers (HLS / TS / MP4 / MKV…): `docs/PLAYBACK_FORMATS.md`.
 
 ## Share with friends (today)
 
@@ -57,40 +71,42 @@ npm run android:apk
 
 Full steps, Fire Stick vs phone, signing, and caveats: [`docs/ANDROID_DISTRIBUTION.md`](docs/ANDROID_DISTRIBUTION.md).
 
-| Path | When to use |
-| --- | --- |
-| **Hosted APK + Downloader** | Fire Stick / Android sideload (recommended IPTV distribution) |
-| `npm run dev` / preview URL | Same Wi‑Fi demo on a laptop/browser |
-| `npm run build && npm run start:api` | Hosted web demo + optional `/api/assistant` |
-| PWA “Add to Home Screen” | Phones only; **usually insufficient on Fire TV** — prefer APK |
+| Path                                 | When to use                                                   |
+| ------------------------------------ | ------------------------------------------------------------- |
+| **Hosted APK + Downloader**          | Fire Stick / Android sideload (recommended IPTV distribution) |
+| `npm run dev` / preview URL          | Same Wi‑Fi demo on a laptop/browser                           |
+| `npm run build && npm run start:api` | Hosted web demo + optional `/api/assistant`                   |
+| PWA “Add to Home Screen”             | Phones only; **usually insufficient on Fire TV** — prefer APK |
 
 App id: `tv.aether.player` · Capacitor wraps the Vite SPA. Live betting is **deferred** (not in this build).
 
 ## Demo vs live
 
-| Capability | Without secrets (demo) | With credentials |
-| --- | --- | --- |
-| Playback / guide / multi-view | Full demo HLS pack | Your M3U / MegaOTT playlist |
-| Assistant | **Mock AI** (deterministic tools) | **Live AI** via `OPENAI_API_KEY` |
-| Reminders / telemetry | `localStorage` | Supabase sync (`VITE_SUPABASE_*`) |
-| Account / RLS | Auth section disabled | Sign in → rows tagged with `user_id` |
-| Catch-up | Stub URL (`aether_catchup=`) | Real timeshift when panel has `tv_archive` |
+| Capability                    | Without secrets (demo)            | With credentials                           |
+| ----------------------------- | --------------------------------- | ------------------------------------------ |
+| Playback / guide / multi-view | Full demo HLS pack                | Your M3U / MegaOTT playlist                |
+| Assistant                     | **Mock AI** (deterministic tools) | **Live AI** via `OPENAI_API_KEY`           |
+| Reminders / telemetry         | `localStorage`                    | Supabase sync (`VITE_SUPABASE_*`)          |
+| Account / RLS                 | Auth section disabled             | Sign in → rows tagged with `user_id`       |
+| Catch-up                      | Stub URL (`aether_catchup=`)      | Real timeshift when panel has `tv_archive` |
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Dev server (includes `GET/POST /api/assistant`) |
-| `npm run build` | Production build |
-| `npm run preview` | Preview build (also mounts `/api/assistant`) |
-| `npm run start:api` | Companion Node server: serves `dist/` + `/api/assistant` |
-| `npm test` | Unit tests |
-| `npm run verify:phase1` … `verify:phase6` | Per-phase Playwright runtime checks |
-| `npm run verify:finish` | Finish-pass Auth / AI mode / catch-up / multi-view checks |
-| `npm run test:e2e` | Run phases 2–6 + finish e2e against `AETHER_URL` |
-| `npm run android:sync` | `build` + `cap sync android` |
-| `npm run android:apk` | Sync + assemble **debug** APK |
-| `npm run android:open` | Open project in Android Studio |
+| Command                                   | Description                                               |
+| ----------------------------------------- | --------------------------------------------------------- |
+| `npm run dev`                             | Dev server (includes `GET/POST /api/assistant`)           |
+| `npm run build`                           | Production build                                          |
+| `npm run preview`                         | Preview build (also mounts `/api/assistant`)              |
+| `npm run start:api`                       | Companion Node server: serves `dist/` + `/api/assistant`  |
+| `npm test`                                | Unit tests                                                |
+| `npm run lint`                            | Oxlint                                                    |
+| `npm run format` / `format:check`         | Prettier write / check                                    |
+| `npm run verify:phase1` … `verify:phase6` | Per-phase Playwright runtime checks                       |
+| `npm run verify:finish`                   | Finish-pass Auth / AI mode / catch-up / multi-view checks |
+| `npm run test:e2e`                        | Run phases 2–6 + finish e2e against `AETHER_URL`          |
+| `npm run android:sync`                    | `build` + `cap sync android`                              |
+| `npm run android:apk`                     | Sync + assemble **debug** APK                             |
+| `npm run android:open`                    | Open project in Android Studio                            |
 
 CI tip: start `npm run dev` (or `npm run start:api` after build), then `AETHER_URL=http://127.0.0.1:5173 npm run test:e2e`.
 
@@ -100,25 +116,25 @@ APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (see `docs/ANDRO
 
 Copy `.env.example` → `.env.local`:
 
-| Variable | Role |
-| --- | --- |
-| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Optional telemetry + reminder sync + Auth UI |
-| `OPENAI_API_KEY` | Enables real multi-round tools loop on the server |
-| `AI_PROVIDER` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | Optional OpenAI-compatible gateway |
-| `VITE_OPENAI_API_KEY` etc. | Client-only fallback when `/api/assistant` is absent |
-| `PORT` | Companion server port (`npm run start:api`, default `4173`) |
+| Variable                                           | Role                                                        |
+| -------------------------------------------------- | ----------------------------------------------------------- |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`     | Optional telemetry + reminder sync + Auth UI                |
+| `OPENAI_API_KEY`                                   | Enables real multi-round tools loop on the server           |
+| `AI_PROVIDER` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | Optional OpenAI-compatible gateway                          |
+| `VITE_OPENAI_API_KEY` etc.                         | Client-only fallback when `/api/assistant` is absent        |
+| `PORT`                                             | Companion server port (`npm run start:api`, default `4173`) |
 
 Without AI keys the deterministic mock agent still runs (Settings shows **Mock AI**). Without Supabase, events and reminders stay in `localStorage` and Auth stays disabled.
 
 ### MegaOTT fields (Settings)
 
-| Field | Required | Notes |
-| --- | --- | --- |
-| Portal / server URL | Yes | Streaming DNS/Server from MegaOTT email/app (`http://host:port`). Not the website login (`https://megaott.net/login`). |
-| Username | Yes | MegaOTT username |
-| Password | Yes | MegaOTT password |
-| Playlist / get.php URL | Optional | Paste full M3U link to auto-fill credentials or ingest |
-| Archive | Provider | Channels with `tv_archive=1` enable catch-up + timeshift URLs |
+| Field                  | Required | Notes                                                                                                                  |
+| ---------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Portal / server URL    | Yes      | Streaming DNS/Server from MegaOTT email/app (`http://host:port`). Not the website login (`https://megaott.net/login`). |
+| Username               | Yes      | MegaOTT username                                                                                                       |
+| Password               | Yes      | MegaOTT password                                                                                                       |
+| Playlist / get.php URL | Optional | Paste full M3U link to auto-fill credentials or ingest                                                                 |
+| Archive                | Provider | Channels with `tv_archive=1` enable catch-up + timeshift URLs                                                          |
 
 Advanced: collapsed **Xtream-compatible API** uses the same fields with Xtream labeling.
 
@@ -146,7 +162,7 @@ See `supabase/RLS.md` for Auth wiring and production hardening (Auth-scoped poli
 
 ## Stack
 
-React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js · Supabase JS (optional)
+React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js · mpegts.js · Oxlint · Prettier · Vitest · Supabase JS (optional)
 
 ## Notes
 
@@ -156,4 +172,5 @@ React 19 · Vite · TypeScript · Tailwind · Zustand · Framer Motion · HLS.js
 - Bring your own legal playlist / provider credentials.
 - Headless / some browsers lack `SpeechRecognition` — typed assistant intents still work.
 - Panel `max_connections=1` — avoid auto-alternate-on-error kicking your own stream.
+- MKV/AVI are unsupported in Chromium WebView — see `docs/PLAYBACK_FORMATS.md` (prefer MP4/HLS; native ExoPlayer/VLC would be needed for Matroska on Android).
 - **Future (not built):** live betting / sportsbook overlays — documented only; out of scope for current APK/web.
