@@ -45,17 +45,15 @@ export function OnboardingPage() {
           transition={{ duration: 0.55 }}
           className="text-center"
         >
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-ember-500/15 ring-1 ring-ember-400/40">
-            <span className="font-display text-3xl font-extrabold text-ember-400">
-              Æ
-            </span>
-          </div>
-          <h1 className="font-display text-5xl font-extrabold tracking-tight md:text-7xl">
-            Aether
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-sand-100/80 md:text-lg">
-            Cable guide. Netflix rails. TiviMate-grade control — rebuilt as a
-            premium IPTV player for the web.
+          <img
+            src="/brand/steadystream-logo.png"
+            alt="SteadyStream"
+            className="mx-auto mb-6 h-28 w-auto object-contain drop-shadow-[0_0_28px_rgba(212,175,55,0.35)] md:h-36"
+          />
+          <h1 className="sr-only">SteadyStream</h1>
+          <p className="mx-auto mt-2 max-w-xl text-base text-sand-100/80 md:text-lg">
+            Cable guide. Netflix rails. TiviMate-grade control — rebuilt as the
+            SteadyStream premium IPTV player.
           </p>
         </motion.div>
 

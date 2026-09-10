@@ -1,8 +1,8 @@
 # AI Memory
 
 - Prefer concise, tested claims only.
-- Product brand for this repo: **Aether** premium IPTV player.
-- Design: ink/sand/ember palette, Bricolage Grotesque + Sora; cinematic dark media UI is intentional for IPTV/Netflix parity.
+- Product brand for this repo: **SteadyStream** premium IPTV player.
+- Design: black/gold SteadyStream palette, Outfit + Sora; cinematic dark media UI is intentional for IPTV/Netflix parity.
 
 ## Verify-before-building gate (HARD RULE)
 

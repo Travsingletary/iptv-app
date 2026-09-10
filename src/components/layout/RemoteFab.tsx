@@ -37,7 +37,7 @@ export function RemoteFab() {
         aria-label={menuOpen ? 'Close remote menu' : 'Open remote menu'}
         aria-pressed={menuOpen}
         title="Remote menu (R)"
-        className={`pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-2xl border shadow-lg backdrop-blur-md transition focus-visible:focus-ring ${
+        className={`pointer-events-auto relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border shadow-lg backdrop-blur-md transition focus-visible:focus-ring ${
           menuOpen
             ? 'border-ember-400/60 bg-ember-500/25 text-ember-300'
             : 'border-white/20 bg-ink-900/80 text-sand-50 hover:border-ember-400/50'
@@ -45,15 +45,21 @@ export function RemoteFab() {
         whileTap={prefs.reduceMotion ? undefined : { scale: 0.92 }}
         onClick={() => toggleMenu()}
       >
+        <img
+          src="/brand/steadystream-mark.svg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
+          aria-hidden
+        />
         <span className="absolute inset-1.5 rounded-xl border border-white/10" />
         <MoreHorizontal
           size={14}
-          className="absolute top-2.5 text-mist-400"
+          className="absolute top-2.5 z-10 text-ember-300 drop-shadow"
           aria-hidden
         />
         <Circle
           size={22}
-          className={menuOpen ? 'fill-ember-400/30 text-ember-300' : 'text-sand-50'}
+          className={`relative z-10 ${menuOpen ? 'fill-ember-400/30 text-ember-300' : 'text-ember-400'}`}
           strokeWidth={2.25}
         />
         <span className="sr-only">OK / Remote</span>

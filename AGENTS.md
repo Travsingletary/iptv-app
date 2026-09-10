@@ -12,5 +12,6 @@ Rules for all Cursor agents working in this repository.
 
 ## Product context
 
-- Brand: **Aether** (premium IPTV player).
-- Design: ink/sand/ember palette; Bricolage Grotesque + Sora; cinematic dark media UI is intentional.
+- Brand: **SteadyStream** (premium IPTV player).
+- Design: black + metallic gold palette (`#000000` / `#D4AF37`); Outfit + Sora; cinematic dark media UI is intentional.
+- Logo assets: `public/brand/` (sourced from SteadyStream TV marketing app).

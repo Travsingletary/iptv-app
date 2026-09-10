@@ -1,4 +1,4 @@
-# Supabase RLS for Aether
+# Supabase RLS for SteadyStream
 
 ## Tables
 

@@ -1,6 +1,6 @@
 {
   "appId": "tv.aether.player",
-  "appName": "Aether",
+  "appName": "SteadyStream",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
@@ -8,6 +8,6 @@
   },
   "android": {
     "allowMixedContent": true,
-    "backgroundColor": "#07090d"
+    "backgroundColor": "#000000"
   }
 }

@@ -78,7 +78,7 @@ try {
 
   await page.getByRole('button', { name: 'Home' }).click()
   await page.waitForTimeout(400)
-  note(`home: ${/For You|Aether|Continue/i.test(await page.locator('body').innerText())}`)
+  note(`home: ${/For You|SteadyStream|Continue/i.test(await page.locator('body').innerText())}`)
 
   await page.getByRole('button', { name: 'Multi-view' }).click()
   await page.waitForTimeout(500)

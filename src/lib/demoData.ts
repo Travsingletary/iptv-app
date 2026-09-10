@@ -34,7 +34,7 @@ const posters = {
 
 export const DEMO_SOURCE: PlaylistSource = {
   id: 'demo',
-  name: 'Aether Demo Pack',
+  name: 'SteadyStream Demo Pack',
   type: 'demo',
   createdAt: Date.now(),
 }
@@ -42,7 +42,7 @@ export const DEMO_SOURCE: PlaylistSource = {
 export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_aether_one',
-    name: 'Aether One',
+    name: 'SteadyStream One',
     group: 'Entertainment',
     url: DEMO_STREAMS.bigBuck,
     kind: 'live',
@@ -215,7 +215,7 @@ const SHOW_TITLES: Record<string, string[]> = {
     'Late Frame',
     'Studio After Dark',
     'Weekend Reel',
-    'Aether Originals',
+    'SteadyStream Originals',
   ],
   'pulse.news': [
     'Morning Pulse',
@@ -281,7 +281,7 @@ function buildDemoEpg(now = Date.now()): EpgProgram[] {
         id: `demo_${channelId}_${i}`,
         channelId,
         title: i % 4 === 0 ? `${title} (Live)` : title,
-        description: `${title} on ${channelId.replace('.', ' ')}. Curated for the Aether demo guide.`,
+        description: `${title} on ${channelId.replace('.', ' ')}. Curated for the SteadyStream demo guide.`,
         category: channelId.includes('sports')
           ? 'Sports'
           : channelId.includes('news')

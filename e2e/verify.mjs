@@ -120,7 +120,7 @@ try {
   // Clear search so other channels appear, then switch
   await search.fill('')
   await page.waitForTimeout(300)
-  await page.getByRole('button', { name: /Aether One/i }).first().click()
+  await page.getByRole('button', { name: /SteadyStream One/i }).first().click()
   await page.waitForTimeout(2500)
   await waitForVideo(page, 'aether playback')
 
@@ -171,7 +171,7 @@ try {
   await page.getByRole('button', { name: /^Assistant$/i }).click().catch(() => undefined)
   await page.waitForTimeout(300)
   const input2 = page.getByPlaceholder(/Ask, remind, mute|Ask for channels/i)
-  await input2.fill('Play Aether One')
+  await input2.fill('Play SteadyStream One')
   await page.keyboard.press('Enter')
   await page.waitForTimeout(1500)
   const fallbackText = await page.locator('aside').last().innerText()

@@ -21,16 +21,16 @@ export interface VoiceIntent {
   assistantMessage: string
 }
 
-const PLAY_RE = /^(?:hey\s+)?(?:aether[, ]+)?(?:please\s+)?(?:play|tune(?:\s+to)?|switch(?:\s+to)?|watch)\s+(.+)$/i
+const PLAY_RE = /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:please\s+)?(?:play|tune(?:\s+to)?|switch(?:\s+to)?|watch)\s+(.+)$/i
 const GUIDE_RE =
-  /^(?:hey\s+)?(?:aether[, ]+)?(?:what(?:'s| is)\s+on(?:\s+(?:now|tv|the\s+guide)?)?|guide|epg|search(?:\s+(?:the\s+)?guide)?)\s*(.*)$/i
-const MUTE_RE = /^(?:hey\s+)?(?:aether[, ]+)?(?:mute|silence|quiet)(?:\s+(?:it|audio|sound|volume))?$/i
-const UNMUTE_RE = /^(?:hey\s+)?(?:aether[, ]+)?(?:unmute|sound\s+on|turn\s+(?:the\s+)?(?:sound|volume)\s+on)$/i
+  /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:what(?:'s| is)\s+on(?:\s+(?:now|tv|the\s+guide)?)?|guide|epg|search(?:\s+(?:the\s+)?guide)?)\s*(.*)$/i
+const MUTE_RE = /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:mute|silence|quiet)(?:\s+(?:it|audio|sound|volume))?$/i
+const UNMUTE_RE = /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:unmute|sound\s+on|turn\s+(?:the\s+)?(?:sound|volume)\s+on)$/i
 const RECOMMEND_RE =
-  /^(?:hey\s+)?(?:aether[, ]+)?(?:recommend|suggest|what\s+should\s+i\s+watch|find\s+me\s+something)(?:\s+(.+))?$/i
-const SEARCH_RE = /^(?:hey\s+)?(?:aether[, ]+)?(?:search|find|look\s+up)\s+(.+)$/i
+  /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:recommend|suggest|what\s+should\s+i\s+watch|find\s+me\s+something)(?:\s+(.+))?$/i
+const SEARCH_RE = /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:search|find|look\s+up)\s+(.+)$/i
 const REMIND_RE =
-  /^(?:hey\s+)?(?:aether[, ]+)?(?:remind\s+me(?:\s+(?:when|about|for))?|set\s+(?:a\s+)?reminder(?:\s+(?:for|when|about))?)\s+(.+)$/i
+  /^(?:hey\s+)?(?:(?:aether|steadystream)[, ]+)?(?:remind\s+me(?:\s+(?:when|about|for))?|set\s+(?:a\s+)?reminder(?:\s+(?:for|when|about))?)\s+(.+)$/i
 
 export function parseVoiceIntent(raw: string): VoiceIntent {
   const text = raw.trim().replace(/\s+/g, ' ')

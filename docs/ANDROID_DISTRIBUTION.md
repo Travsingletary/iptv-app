@@ -1,6 +1,6 @@
-# Android / Downloader distribution (Aether)
+# Android / Downloader distribution (SteadyStream)
 
-Sideload Aether onto Fire Stick and Android phones the classic IPTV way: host an APK on an HTTPS URL, then install it with the **Downloader** app.
+Sideload SteadyStream onto Fire Stick and Android phones the classic IPTV way: host an APK on an HTTPS URL, then install it with the **Downloader** app.
 
 Live betting / sportsbook overlays are **not implemented** — deferred to a future release. Do not expect betting UI in this APK.
 
@@ -28,7 +28,7 @@ What that runs:
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-App id: `tv.aether.player` · Display name: **Aether**
+App id: `tv.aether.player` · Display name: **SteadyStream**
 
 ### Release signing (later)
 
@@ -73,7 +73,7 @@ Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking
 2. Get **Downloader** from the Amazon Appstore (silk browser → search “Downloader” if needed).
 3. Open Downloader → enter the **full HTTPS APK URL** → Go.
 4. When the file finishes, tap **Install** → **Open**.
-5. Launch **Aether** from Apps. Enter MegaOTT / M3U in Settings on the device (credentials stay local).
+5. Launch **SteadyStream** from Apps. Enter MegaOTT / M3U in Settings on the device (credentials stay local).
 
 Tip: Downloader can remember a short numeric code if you use its code feature with a hosted URL mapping — optional; a pasted URL is enough.
 
@@ -81,7 +81,7 @@ Tip: Downloader can remember a short numeric code if you use its code feature wi
 
 1. Settings → allow install from unknown apps for **Downloader** (or Chrome / Files).
 2. Same Downloader flow (or open the APK URL in Chrome and install).
-3. Open Aether → connect playlist in Settings.
+3. Open SteadyStream → connect playlist in Settings.
 
 ## 4. Fire Stick vs phone differences
 

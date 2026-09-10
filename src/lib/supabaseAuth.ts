@@ -1,5 +1,5 @@
 /**
- * Demo-safe Supabase Auth helpers for Aether.
+ * Demo-safe Supabase Auth helpers for SteadyStream.
  * Without VITE_SUPABASE_* the app stays usable (disabled/demo state).
  */
 import type { Session, User } from '@supabase/supabase-js'

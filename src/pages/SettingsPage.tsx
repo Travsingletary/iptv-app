@@ -836,6 +836,28 @@ export function SettingsPage() {
           />
         </label>
       </section>
+
+      <section className="glass-panel space-y-3 rounded-3xl p-5 md:p-6">
+        <div className="flex items-center gap-4">
+          <img
+            src="/brand/steadystream-logo.png"
+            alt="SteadyStream"
+            className="h-16 w-auto object-contain"
+          />
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.22em] text-ember-400">
+              About
+            </p>
+            <h2 className="font-display text-lg font-semibold text-ember-400">
+              SteadyStream
+            </h2>
+            <p className="mt-1 text-sm text-mist-300">
+              Premium IPTV player · v1.0.0 · package id{' '}
+              <span className="font-mono text-sand-100">tv.aether.player</span>
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   )
 }

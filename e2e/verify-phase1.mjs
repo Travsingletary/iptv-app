@@ -71,7 +71,7 @@ try {
   await page.waitForTimeout(2000)
   await search.fill('')
   await page.waitForTimeout(200)
-  await page.getByRole('button', { name: /Aether One/i }).first().click()
+  await page.getByRole('button', { name: /SteadyStream One/i }).first().click()
   await page.waitForTimeout(1800)
 
   // Favorite toggle

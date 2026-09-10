@@ -22,7 +22,7 @@ export function HeroBanner({ channel }: { channel: Channel }) {
         transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
         style={{
           backgroundImage: image
-            ? `linear-gradient(90deg, rgba(7,9,13,0.96) 0%, rgba(7,9,13,0.72) 42%, rgba(7,9,13,0.35) 100%), linear-gradient(180deg, transparent 40%, rgba(7,9,13,0.95) 100%), url(${image})`
+            ? `linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.72) 42%, rgba(0,0,0,0.35) 100%), linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.95) 100%), url(${image})`
             : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -45,7 +45,7 @@ export function HeroBanner({ channel }: { channel: Channel }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18, duration: 0.5 }}
         >
-          Aether
+          SteadyStream
         </motion.h1>
         <motion.p
           className="mt-2 font-display text-2xl font-semibold text-sand-100 md:text-3xl"

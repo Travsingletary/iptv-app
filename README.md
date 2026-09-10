@@ -1,4 +1,4 @@
-# Aether — Premium IPTV Player
+# SteadyStream — Premium IPTV Player
 
 A cable / Netflix-style IPTV experience for the web: live TV, electronic program guide, on-demand rails, favorites, M3U / MegaOTT import, multi-view, and an assistant agent.
 
@@ -52,7 +52,7 @@ npm run android:apk
 ```
 
 1. Upload the APK (GitHub Releases, Cloudflare R2, S3, etc.).
-2. On the device: install **Downloader** → paste the HTTPS APK URL → Install → Open **Aether**.
+2. On the device: install **Downloader** → paste the HTTPS APK URL → Install → Open **SteadyStream**.
 3. Friends enter their own MegaOTT / M3U credentials in Settings (secrets stay on-device).
 
 Full steps, Fire Stick vs phone, signing, and caveats: [`docs/ANDROID_DISTRIBUTION.md`](docs/ANDROID_DISTRIBUTION.md).

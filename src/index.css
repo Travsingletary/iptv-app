@@ -4,7 +4,10 @@
 
 :root {
   color-scheme: dark;
-  --focus-ring: #e8a045;
+  --focus-ring: #d4af37;
+  --ss-gold: #d4af37;
+  --ss-gold-dark: #b8860b;
+  --ss-black: #000000;
 }
 
 * {
@@ -21,7 +24,7 @@ body,
 body {
   margin: 0;
   font-family: theme('fontFamily.body');
-  background: #07090d;
+  background: #000000;
   overflow: hidden;
 }
 
@@ -35,12 +38,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(154, 175, 196, 0.28);
+  background: rgba(212, 175, 55, 0.28);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(232, 160, 69, 0.55);
+  background: rgba(212, 175, 55, 0.55);
 }
 
 @layer components {

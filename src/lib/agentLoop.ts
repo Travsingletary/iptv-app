@@ -497,7 +497,7 @@ export function executeAgentPlan(
     const lower = trimmed.toLowerCase()
     if (/^(hi|hello|hey|good (morning|afternoon|evening))\b/i.test(trimmed)) {
       response = [
-        `Hello — I'm Aether.`,
+        `Hello — I'm SteadyStream.`,
         `You're on ${context.view} watching ${activeName}.`,
         `Ask me to recommend, search the guide ("sports in next 2 hours"), mute, play a channel, or set a reminder.`,
       ].join(' ')

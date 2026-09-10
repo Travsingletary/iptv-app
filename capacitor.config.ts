@@ -6,7 +6,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
  */
 const config: CapacitorConfig = {
   appId: 'tv.aether.player',
-  appName: 'Aether',
+  appName: 'SteadyStream',
   webDir: 'dist',
   server: {
     // IPTV panels often use plain http://host:port — allow cleartext in WebView.
@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true,
-    backgroundColor: '#07090d',
+    backgroundColor: '#000000',
   },
 }
 

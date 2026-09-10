@@ -15,7 +15,7 @@ describe('providerAdapter', () => {
 
   it('builds an id=name channel catalog for the system prompt', () => {
     const catalog = buildChannelCatalog({ channels: DEMO_CHANNELS.slice(0, 3) })
-    expect(catalog).toContain('live_aether_one=Aether One')
+    expect(catalog).toContain('live_aether_one=SteadyStream One')
     expect(catalog).toContain('live_pulse_news=Pulse News 24')
   })
 

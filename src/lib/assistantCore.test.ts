@@ -151,7 +151,7 @@ describe('resolveAssistantReply', () => {
       epg: DEMO_EPG,
     })
     expect(hi.aiMode).toBe('mock')
-    expect(hi.response).toMatch(/Hello|Aether/i)
+    expect(hi.response).toMatch(/Hello|SteadyStream/i)
 
     const help = await resolveAssistantReply('help', {
       view: 'home',

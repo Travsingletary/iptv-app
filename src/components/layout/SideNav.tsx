@@ -54,14 +54,16 @@ export function SideNav({ overlay = false }: { overlay?: boolean }) {
     >
       <div className="border-b border-white/8 px-3 py-5 md:px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ember-500/15 ring-1 ring-ember-400/40">
-            <span className="font-display text-lg font-extrabold text-ember-400">
-              Æ
-            </span>
-          </div>
+          <img
+            src="/brand/steadystream-mark.svg"
+            alt=""
+            className="h-10 w-10 rounded-xl ring-1 ring-ember-400/40"
+            width={40}
+            height={40}
+          />
           <div className="hidden md:block">
-            <p className="font-display text-lg font-bold leading-none tracking-tight">
-              Aether
+            <p className="font-display text-lg font-bold leading-none tracking-tight text-ember-400">
+              SteadyStream
             </p>
             <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
               Premium IPTV

@@ -191,6 +191,6 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Aether companion listening on http://0.0.0.0:${port}`)
+  console.log(`SteadyStream companion listening on http://0.0.0.0:${port}`)
   console.log(`Serving ${distDir} + POST /api/assistant`)
 })

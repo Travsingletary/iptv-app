@@ -40,7 +40,7 @@ export function AssistantPanel() {
     {
       id: 'seed',
       role: 'assistant',
-      text: 'Hi, I am your Aether assistant. Try “sports in next 2 hours”, switch profiles in Settings, or mute + remind. Hold the mic if your browser supports voice.',
+        text: 'Hi, I am your SteadyStream assistant. Try “sports in next 2 hours”, switch profiles in Settings, or mute + remind. Hold the mic if your browser supports voice.',
     },
   ])
   const [loading, setLoading] = useState(false)
@@ -242,7 +242,7 @@ export function AssistantPanel() {
         <aside className="absolute right-0 top-0 z-50 flex h-full w-full flex-col border-l border-white/10 bg-ink-950/95 backdrop-blur-xl sm:w-[24rem]">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div>
-              <p className="font-display text-lg font-bold">Aether Assistant</p>
+              <p className="font-display text-lg font-bold">SteadyStream Assistant</p>
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
                 {activeProfile.name} · profiles · NL EPG
               </p>

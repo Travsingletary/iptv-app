@@ -1,4 +1,4 @@
-# Fire Stick / lean-back remote (Aether)
+# Fire Stick / lean-back remote (SteadyStream)
 
 Web remote layer lives in `src/lib/fireStickRemote.ts` + `src/App.tsx` + spatial focus in `src/lib/tvFocus.ts`. Browser keyboard simulation matches Fire Stick D-pad.
 
@@ -59,7 +59,7 @@ Add `android:banner="@drawable/…"` on the application/activity for the Android
 ### Verify on device
 
 1. Sideload APK (see `docs/ANDROID_DISTRIBUTION.md`).
-2. Confirm Aether appears in Fire TV Apps (LEANBACK_LAUNCHER).
+2. Confirm SteadyStream appears in Fire TV Apps (LEANBACK_LAUNCHER).
 3. D-pad: focus rings move · OK opens menu · Back returns to immersive · ↑↓ zaps when immersive.
 
 ### Do not
