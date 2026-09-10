@@ -72,6 +72,7 @@ Add `android:banner="@drawable/…"` on the application/activity for the Android
 
 ```bash
 npm test -- src/lib/fireStickRemote.test.ts src/lib/tvFocus.test.ts
+AETHER_URL=http://127.0.0.1:5173 node e2e/verify-firestick-remote.mjs
 ```
 
 Manual: open the app, press `Escape` until immersive, then `Enter` (menu), arrows (focus rings), `Escape` (dismiss).
