@@ -4,7 +4,8 @@ import { useIptvStore } from '../../store/useIptvStore'
 
 /**
  * Persistent remote / OK affordance — toggles the TV overlay menu.
- * Keyboard: KeyR, and Escape/Backspace dismiss when open (wired in App).
+ * Fire Stick map (wired in App via fireStickRemote):
+ * OK/Enter opens menu when immersive · Back dismisses · Menu/R toggles · ↑↓ zap.
  */
 export function RemoteFab() {
   const menuOpen = useIptvStore((s) => s.menuOpen)

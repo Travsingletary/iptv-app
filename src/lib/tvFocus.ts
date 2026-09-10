@@ -97,7 +97,17 @@ export function handleTvDirectionalKey(
   const direction = directionFromKey(event.key)
   if (!direction) return false
   const tag = (event.target as HTMLElement | null)?.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false
+  const inputType =
+    tag === 'INPUT' ? (event.target as HTMLInputElement).type : undefined
+  const isTextField =
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT' ||
+    (tag === 'INPUT' &&
+      inputType !== 'range' &&
+      inputType !== 'checkbox' &&
+      inputType !== 'radio' &&
+      inputType !== 'button')
+  if (isTextField) return false
 
   const candidates = collectFocusables(root)
   if (!candidates.length) return false

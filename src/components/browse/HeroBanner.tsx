@@ -75,19 +75,21 @@ export function HeroBanner({ channel }: { channel: Channel }) {
         >
           <button
             type="button"
+            data-tv-focus
             onClick={() => {
               playChannel(channel.id)
               setMenuOpen(false)
             }}
-            className="inline-flex items-center gap-2 rounded-full bg-sand-50 px-5 py-3 text-sm font-semibold text-ink-950 shadow-glow transition hover:bg-white"
+            className="inline-flex items-center gap-2 rounded-full bg-sand-50 px-5 py-3 text-sm font-semibold text-ink-950 shadow-glow transition hover:bg-white focus-visible:focus-ring"
           >
             <Play size={16} fill="currentColor" />
             Watch now
           </button>
           <button
             type="button"
+            data-tv-focus
             onClick={() => toggleFavorite(channel.id)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-ink-900/50 px-5 py-3 text-sm font-medium backdrop-blur transition hover:border-ember-400/50"
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-ink-900/50 px-5 py-3 text-sm font-medium backdrop-blur transition hover:border-ember-400/50 focus-visible:focus-ring"
           >
             <Plus size={16} />
             {favorites.includes(channel.id) ? 'In My List' : 'My List'}

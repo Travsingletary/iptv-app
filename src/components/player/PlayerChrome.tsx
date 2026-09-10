@@ -98,6 +98,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
             <div className="flex gap-2">
               <button
                 type="button"
+                data-tv-focus
                 className="rounded-full border border-white/15 bg-ink-900/70 p-2.5 backdrop-blur hover:border-ember-400/60"
                 onClick={() => toggleFavorite(channel.id)}
                 aria-label="Toggle favorite"
@@ -113,6 +114,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
               </button>
               <button
                 type="button"
+                data-tv-focus
                 className="rounded-full border border-white/15 bg-ink-900/70 p-2.5 backdrop-blur hover:border-ember-400/60"
                 onClick={() => document.documentElement.requestFullscreen?.()}
                 aria-label="Fullscreen"
@@ -135,6 +137,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
+                data-tv-focus
                 className="rounded-full bg-sand-50 px-4 py-2.5 text-ink-950 hover:bg-white"
                 onClick={() => setPlayer({ paused: !player.paused })}
               >
@@ -142,6 +145,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
               </button>
               <button
                 type="button"
+                data-tv-focus
                 className="rounded-full border border-white/15 bg-ink-900/70 p-2.5"
                 onClick={() => zap(-1)}
                 aria-label="Previous channel"
@@ -150,6 +154,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
               </button>
               <button
                 type="button"
+                data-tv-focus
                 className="rounded-full border border-white/15 bg-ink-900/70 p-2.5"
                 onClick={() => zap(1)}
                 aria-label="Next channel"
@@ -158,6 +163,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
               </button>
               <button
                 type="button"
+                data-tv-focus
                 className="rounded-full border border-white/15 bg-ink-900/70 p-2.5"
                 onClick={() => setPlayer({ muted: !player.muted })}
                 aria-label="Mute"
@@ -166,6 +172,8 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
               </button>
               <input
                 type="range"
+                data-tv-focus
+                data-testid="player-volume-scrub"
                 min={0}
                 max={1}
                 step={0.01}
@@ -176,6 +184,15 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
                     muted: Number(e.target.value) === 0,
                   })
                 }
+                onKeyDown={(e) => {
+                  // Left/Right adjust volume when scrub is focused (Fire Stick OK path).
+                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const delta = e.key === 'ArrowRight' ? 0.05 : -0.05
+                  const next = Math.min(1, Math.max(0, player.volume + delta))
+                  setPlayer({ volume: next, muted: next === 0 })
+                }}
                 className="h-1 w-28 accent-ember-400"
               />
               <div className="ml-auto flex flex-wrap gap-2">

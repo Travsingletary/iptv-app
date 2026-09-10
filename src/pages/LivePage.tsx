@@ -87,6 +87,7 @@ export function LivePage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search channels"
             data-testid="live-channel-search"
+            data-tv-focus
             className="w-full rounded-xl border border-white/10 bg-ink-850 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-ember-400/50"
           />
         </div>

@@ -7,6 +7,10 @@ import { VodPage } from './pages/VodPage'
 import { FavoritesPage } from './pages/FavoritesPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { handleTvDirectionalKey } from './lib/tvFocus'
+import {
+  hasActiveTvControl,
+  resolveRemoteAction,
+} from './lib/fireStickRemote'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { useIptvStore } from './store/useIptvStore'
 
@@ -32,6 +36,16 @@ function ViewRouter() {
   }
 }
 
+function focusSeedForView(view: string, menuOpen: boolean, overlayVisible: boolean) {
+  if (menuOpen) return true
+  if (view === 'multiview' || view === 'settings' || view === 'guide' || view === 'vod') {
+    return true
+  }
+  // Player chrome buttons / scrub when chrome is visible
+  if (overlayVisible) return true
+  return false
+}
+
 export default function App() {
   const onboarded = useIptvStore((s) => s.onboarded)
   const refreshDemoGuide = useIptvStore((s) => s.refreshDemoGuide)
@@ -42,73 +56,105 @@ export default function App() {
   const toggleMenu = useIptvStore((s) => s.toggleMenu)
   const channels = useIptvStore((s) => s.channels)
   const player = useIptvStore((s) => s.player)
+  const menuOpen = useIptvStore((s) => s.menuOpen)
 
   useEffect(() => {
     refreshDemoGuide()
   }, [refreshDemoGuide])
 
+  // When the Remote overlay opens, seed focus onto SideNav / first TV control.
+  useEffect(() => {
+    if (!menuOpen) return
+    const id = window.requestAnimationFrame(() => {
+      const first = document.querySelector<HTMLElement>(
+        'aside [data-tv-focus], [data-testid="remote-back"], [data-tv-focus]',
+      )
+      first?.focus()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [menuOpen])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      const isTextField =
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        (tag === 'INPUT' &&
+          (target as HTMLInputElement).type !== 'range' &&
+          (target as HTMLInputElement).type !== 'checkbox' &&
+          (target as HTMLInputElement).type !== 'radio' &&
+          (target as HTMLInputElement).type !== 'button')
+      if (isTextField) return
 
       const state = useIptvStore.getState()
       const view = state.view
       const menuOpen = state.menuOpen
-      const seedFocus =
-        view === 'multiview' || view === 'settings' || view === 'guide' || view === 'vod'
+      const overlayVisible = state.player.overlayVisible
+      const focusMode = focusSeedForView(view, menuOpen, overlayVisible)
+      const focused = hasActiveTvControl(document.activeElement)
 
-      // Remote: open/close overlay menu (R / OK-style Enter when menu closed)
-      if (e.key === 'r' || e.key === 'R') {
+      const action = resolveRemoteAction(
+        e,
+        { menuOpen, overlayVisible, focusMode },
+        { hasFocusedControl: focused },
+      )
+
+      if (action === 'toggle-menu') {
         e.preventDefault()
         toggleMenu()
         return
       }
-      if (e.key === 'Escape' || e.key === 'Backspace') {
-        e.preventDefault()
-        if (menuOpen) {
-          setMenuOpen(false)
-        } else {
-          setPlayer({ overlayVisible: !state.player.overlayVisible })
-        }
-        return
-      }
-      if ((e.key === 'Enter' || e.key === 'OK') && !menuOpen) {
-        const active = document.activeElement as HTMLElement | null
-        const tag = active?.tagName
-        // Don't steal OK/Enter from focused controls — only body-level OK opens menu
-        if (
-          active &&
-          active !== document.body &&
-          tag !== 'HTML' &&
-          tag !== 'BODY'
-        ) {
-          return
-        }
+      if (action === 'open-menu') {
         e.preventDefault()
         setMenuOpen(true)
         return
       }
-
-      // Spatial D-pad navigation when focus is already on a control
-      if (handleTvDirectionalKey(e, document, { seedIfUnfocused: seedFocus || menuOpen }))
+      if (action === 'dismiss-menu') {
+        e.preventDefault()
+        setMenuOpen(false)
         return
-
-      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (seedFocus || menuOpen)) {
+      }
+      if (action === 'hide-chrome') {
+        e.preventDefault()
+        setPlayer({ overlayVisible: false })
+        return
+      }
+      if (action === 'noop-immersive') {
+        // Swallow Back so the WebView / browser does not navigate away mid-play.
+        e.preventDefault()
+        return
+      }
+      if (action === 'select-focused') {
+        // Native activation for the focused control (Enter on <button>, etc.).
         return
       }
 
-      // Channel zap only in immersive TV (menu dismissed)
+      // Spatial D-pad before channel zap
+      if (
+        handleTvDirectionalKey(e, document, {
+          seedIfUnfocused: focusMode,
+        })
+      ) {
+        return
+      }
+
+      if (action === 'focus-nav') {
+        // Directional key with nowhere to move — don't fall through to zap.
+        return
+      }
+
       const live = channels.filter((c) => c.kind === 'live')
       const idx = live.findIndex((c) => c.id === player.channelId)
 
       if (e.key === ' ') {
         e.preventDefault()
         setPlayer({ paused: !useIptvStore.getState().player.paused })
-      } else if (!menuOpen && e.key === 'ArrowUp' && idx >= 0) {
+      } else if (action === 'channel-zap-up' && idx >= 0) {
         e.preventDefault()
         playChannel(live[(idx - 1 + live.length) % live.length].id)
-      } else if (!menuOpen && e.key === 'ArrowDown' && idx >= 0) {
+      } else if (action === 'channel-zap-down' && idx >= 0) {
         e.preventDefault()
         playChannel(live[(idx + 1) % live.length].id)
       } else if (e.key === 'm' || e.key === 'M') {

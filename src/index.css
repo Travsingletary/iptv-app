@@ -48,15 +48,29 @@ body {
     @apply outline-none ring-2 ring-ember-400/90 ring-offset-2 ring-offset-ink-950;
   }
 
-  /* Android TV / remote: strong visible focus for spatial navigation */
-  :focus-visible,
-  [data-tv-focus]:focus {
+  /*
+   * Fire Stick / lean-back: always-visible focus rings (not only :focus-visible).
+   * Remotes move focus without mouse hover; rings must stay readable on dark UI.
+   */
+  button:focus,
+  a:focus,
+  input:focus,
+  select:focus,
+  textarea:focus,
+  [tabindex]:focus,
+  [data-tv-focus]:focus,
+  :focus-visible {
     outline: 2px solid var(--focus-ring);
     outline-offset: 3px;
   }
 
+  .tv-focus-ring:focus,
   .tv-focus-ring:focus-visible {
     @apply outline-none ring-2 ring-ember-400 ring-offset-2 ring-offset-ink-950;
+  }
+
+  .focus-visible\:focus-ring:focus {
+    @apply outline-none ring-2 ring-ember-400/90 ring-offset-2 ring-offset-ink-950;
   }
 
   .glass-panel {

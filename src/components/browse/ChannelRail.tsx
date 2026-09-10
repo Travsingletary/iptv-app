@@ -36,6 +36,7 @@ export function ChannelRail({
             <motion.button
               key={ch.id}
               type="button"
+              data-tv-focus
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.min(i * 0.04, 0.35) }}
