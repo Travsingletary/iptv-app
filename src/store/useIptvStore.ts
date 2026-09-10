@@ -102,12 +102,16 @@ interface IptvState {
   setSelectedGroup: (group: string | null) => void
   toggleFavorite: (channelId: string) => void
   playChannel: (channelId: string) => void
+  /** Force remount of the current stream (retry after error / stall). */
+  retryPlayback: () => void
   setPlayer: (patch: Partial<PlayerState>) => void
   setStreamError: (message: string) => void
   loadDemo: () => void
   importM3UText: (name: string, text: string, epgUrl?: string) => void
   importM3UUrl: (name: string, url: string, epgUrl?: string) => Promise<void>
-  importXtream: (creds: XtreamCredentials) => Promise<{ message: string; usedDemoFallback: boolean }>
+  importXtream: (
+    creds: XtreamCredentials,
+  ) => Promise<{ message: string; usedDemoFallback: boolean }>
   loadVodCategory: (categoryId: string) => Promise<{ message: string; ok: boolean }>
   playVodTitle: (channelId: string) => Promise<void>
   removeSource: (id: string) => void
@@ -151,6 +155,7 @@ const defaultPlayer: PlayerState = {
   catchup: null,
   multiViewIds: [],
   multiViewLayout: 1,
+  playbackNonce: 0,
 }
 
 const defaultPrefs: UiPrefs = {
@@ -158,6 +163,8 @@ const defaultPrefs: UiPrefs = {
   autoHideControlsMs: 4200,
   reduceMotion: false,
   guideHours: 5,
+  largeText: false,
+  highContrast: false,
 }
 
 export const useIptvStore = create<IptvState>()(
@@ -243,10 +250,25 @@ export const useIptvStore = create<IptvState>()(
               catchup: null,
             },
             bufferingStartedAt: Date.now(),
-            recentIds: [
-              channelId,
-              ...s.recentIds.filter((id) => id !== channelId),
-            ].slice(0, 24),
+            recentIds: [channelId, ...s.recentIds.filter((id) => id !== channelId)].slice(0, 24),
+          }
+        }),
+
+      retryPlayback: () =>
+        set((s) => {
+          if (!s.player.channelId) return s
+          void trackEvent('playback_retry', { channelId: s.player.channelId })
+          return {
+            bufferingStartedAt: Date.now(),
+            player: {
+              ...s.player,
+              paused: false,
+              buffering: true,
+              error: null,
+              fallbackSuggestions: [],
+              overlayVisible: true,
+              playbackNonce: (s.player.playbackNonce ?? 0) + 1,
+            },
           }
         }),
 
@@ -429,7 +451,7 @@ export const useIptvStore = create<IptvState>()(
       },
 
       loadDemo: () =>
-        set({
+        set((s) => ({
           sources: [DEMO_SOURCE],
           activeSourceId: DEMO_SOURCE.id,
           channels: DEMO_CHANNELS,
@@ -438,10 +460,11 @@ export const useIptvStore = create<IptvState>()(
           vodLoadingCategoryId: null,
           vodLoadError: null,
           epg: refreshDemoEpg(),
-          onboarded: true,
-          view: 'home',
-          menuOpen: true,
-        }),
+          // Preserve onboarded so the first-run tour can finish after loading demo.
+          onboarded: s.onboarded,
+          view: s.onboarded ? 'home' : s.view,
+          menuOpen: s.onboarded ? true : s.menuOpen,
+        })),
 
       importM3UText: (name, text, epgUrl) => {
         const parsed = parseM3U(text)
@@ -454,6 +477,7 @@ export const useIptvStore = create<IptvState>()(
           createdAt: Date.now(),
         }
         const stayOnSettings = get().view === 'settings'
+        const alreadyOnboarded = get().onboarded
         const vodCategories = demoVodCategoriesFromChannels(parsed)
         set({
           sources: [...get().sources.filter((s) => s.type !== 'demo'), source],
@@ -464,8 +488,8 @@ export const useIptvStore = create<IptvState>()(
           vodLoadingCategoryId: null,
           vodLoadError: null,
           epg: [],
-          onboarded: true,
-          view: stayOnSettings ? 'settings' : 'home',
+          onboarded: alreadyOnboarded,
+          view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
           player: { ...defaultPlayer },
         })
       },
@@ -485,6 +509,7 @@ export const useIptvStore = create<IptvState>()(
           createdAt: Date.now(),
         }
         const stayOnSettings = get().view === 'settings'
+        const alreadyOnboarded = get().onboarded
         const vodCategories = demoVodCategoriesFromChannels(parsed)
         set({
           sources: [...get().sources.filter((s) => s.type !== 'demo'), source],
@@ -495,8 +520,8 @@ export const useIptvStore = create<IptvState>()(
           vodLoadingCategoryId: null,
           vodLoadError: null,
           epg: [],
-          onboarded: true,
-          view: stayOnSettings ? 'settings' : 'home',
+          onboarded: alreadyOnboarded,
+          view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
           player: { ...defaultPlayer },
         })
       },
@@ -504,6 +529,7 @@ export const useIptvStore = create<IptvState>()(
       importXtream: async (creds) => {
         const result = await ingestXtream(creds)
         const stayOnSettings = get().view === 'settings'
+        const alreadyOnboarded = get().onboarded
         if (result.usedDemoFallback) {
           const demoCats = result.vodCategories.length
             ? result.vodCategories
@@ -517,8 +543,8 @@ export const useIptvStore = create<IptvState>()(
             vodLoadingCategoryId: null,
             vodLoadError: null,
             epg: xtreamDemoEpg(),
-            onboarded: true,
-            view: stayOnSettings ? 'settings' : 'home',
+            onboarded: alreadyOnboarded,
+            view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
             player: { ...defaultPlayer },
           })
         } else {
@@ -531,8 +557,8 @@ export const useIptvStore = create<IptvState>()(
             vodLoadingCategoryId: null,
             vodLoadError: null,
             epg: [],
-            onboarded: true,
-            view: stayOnSettings ? 'settings' : 'home',
+            onboarded: alreadyOnboarded,
+            view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
             player: { ...defaultPlayer },
           })
         }
@@ -809,9 +835,7 @@ export const useIptvStore = create<IptvState>()(
         const vod = s.channels.filter((c) => c.kind !== 'live')
         // Prefer live for persistence; keep a small VOD slice if room remains.
         const persistChannels =
-          s.channels.length < 500
-            ? s.channels
-            : [...live, ...vod].slice(0, 500)
+          s.channels.length < 500 ? s.channels : [...live, ...vod].slice(0, 500)
         return {
           onboarded: s.onboarded,
           favorites: s.favorites,
@@ -851,6 +875,11 @@ export const useIptvStore = create<IptvState>()(
           saveProfiles(saved.profiles)
         } else {
           merged.profiles = loadProfiles()
+        }
+        // Backfill a11y prefs for older persisted sessions.
+        merged.prefs = {
+          ...defaultPrefs,
+          ...(saved.prefs ?? {}),
         }
         return merged
       },

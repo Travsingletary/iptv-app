@@ -95,6 +95,8 @@ export interface PlayerState {
   /** Multi-view mosaic slot channel ids (2 or 4). */
   multiViewIds: string[]
   multiViewLayout: 1 | 2 | 4
+  /** Bumped by retryPlayback to force VideoPlayer remount of the same URL. */
+  playbackNonce: number
 }
 
 export interface ProgramReminder {
@@ -116,4 +118,8 @@ export interface UiPrefs {
   autoHideControlsMs: number
   reduceMotion: boolean
   guideHours: number
+  /** Accessibility: bump base font size across the shell. */
+  largeText: boolean
+  /** Accessibility: stronger gold/white contrast on black. */
+  highContrast: boolean
 }

@@ -8,6 +8,7 @@ export type ClientEventType =
   | 'channel_switch'
   | 'favorite_toggle'
   | 'search_query'
+  | 'playback_retry'
 
 export interface ClientEvent {
   type: ClientEventType
@@ -78,9 +79,6 @@ export const eventLogger: EventLogger = {
   },
 }
 
-export async function trackEvent(
-  type: ClientEventType,
-  payload: ClientEvent['payload'],
-) {
+export async function trackEvent(type: ClientEventType, payload: ClientEvent['payload']) {
   await eventLogger.track({ type, payload, at: Date.now() })
 }
