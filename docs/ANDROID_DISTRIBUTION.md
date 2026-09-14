@@ -47,21 +47,25 @@ npm run build && npx cap sync android
 
 Never commit `.jks` / `.keystore` files or passwords.
 
-## 2. Host the APK on any HTTPS URL
+## 2. Hosted APK URL (Downloader)
 
-Upload `app-debug.apk` (or the release APK) somewhere friends can reach without login walls if possible:
+**Current debug build** (SteadyStream · `tv.aether.player` · leanback):
+
+```text
+https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.0.0-debug/SteadyStream-debug.apk
+```
+
+Release page: https://github.com/Travsingletary/iptv-app/releases/tag/steadystream-v1.0.0-debug
+
+Paste that URL into **Downloader** on Fire Stick / Android. No captcha or login wall.
+
+To re-host after a rebuild:
 
 | Host | Notes |
 | --- | --- |
-| **GitHub Releases** | Attach the APK to a release; copy the asset download URL |
+| **GitHub Releases** (preferred) | `gh release upload steadystream-v1.0.0-debug SteadyStream-debug.apk --clobber` or create a new tag |
 | **Cloudflare R2** / S3 / GCS | Public object URL or signed URL |
 | **Any static HTTPS** | Must end in `.apk` or set `Content-Type: application/vnd.android.package-archive` |
-
-Example (conceptual):
-
-```text
-https://example.com/aether/aether-debug.apk
-```
 
 Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking “download” after a captcha.
 

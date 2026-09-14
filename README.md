@@ -58,18 +58,19 @@ Accessibility: Settings → **Large text** / **High contrast** (plus Reduce moti
 
 ## Share with friends (today)
 
-**Best path for Fire Stick / Android:** build a debug APK, host it on any HTTPS URL, friends install with the **Downloader** app.
+**Best path for Fire Stick / Android:** install the hosted debug APK with the **Downloader** app.
 
-```bash
-npm run android:apk
-# → android/app/build/outputs/apk/debug/app-debug.apk
+**Downloader URL (current build):**
+
+```text
+https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.0.0-debug/SteadyStream-debug.apk
 ```
 
-1. Upload the APK (GitHub Releases, Cloudflare R2, S3, etc.).
-2. On the device: install **Downloader** → paste the HTTPS APK URL → Install → Open **SteadyStream**.
+1. Fire Stick: enable **Apps from Unknown Sources** / Installer for Downloader.
+2. Install **Downloader** → paste the HTTPS URL above → Install → Open **SteadyStream**.
 3. Friends enter their own MegaOTT / M3U credentials in Settings (secrets stay on-device).
 
-Full steps, Fire Stick vs phone, signing, and caveats: [`docs/ANDROID_DISTRIBUTION.md`](docs/ANDROID_DISTRIBUTION.md).
+Rebuild locally with `npm run android:apk` → `android/app/build/outputs/apk/debug/app-debug.apk`. Full steps, Fire Stick vs phone, signing, and caveats: [`docs/ANDROID_DISTRIBUTION.md`](docs/ANDROID_DISTRIBUTION.md).
 
 | Path                                 | When to use                                                   |
 | ------------------------------------ | ------------------------------------------------------------- |

@@ -58,7 +58,10 @@ Add `android:banner="@drawable/…"` on the application/activity for the Android
 
 ### Verify on device
 
-1. Sideload APK (see `docs/ANDROID_DISTRIBUTION.md`).
+1. Sideload APK via Downloader (see `docs/ANDROID_DISTRIBUTION.md`). Current HTTPS URL:
+
+   `https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.0.0-debug/SteadyStream-debug.apk`
+
 2. Confirm SteadyStream appears in Fire TV Apps (LEANBACK_LAUNCHER).
 3. D-pad: focus rings move · OK opens menu · Back returns to immersive · ↑↓ zaps when immersive.
 
