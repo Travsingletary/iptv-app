@@ -57,7 +57,40 @@ https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.0.0
 
 Release page: https://github.com/Travsingletary/iptv-app/releases/tag/steadystream-v1.0.0-debug
 
-Paste that URL into **Downloader** on Fire Stick / Android. No captcha or login wall.
+### Short URL (verified)
+
+Typing the full GitHub Releases URL on a Fire Stick remote is painful. Use this verified short link instead (all lowercase):
+
+```text
+https://tinyurl.com/2c55b9lc
+```
+
+In **Downloader**, enter either `tinyurl.com/2c55b9lc` or the full `https://…` form above → **Go**. It 301s to the SteadyStream APK (verified Sep 2026).
+
+### Downloader numeric code (best UX — create once)
+
+**No verified SteadyStream numeric code yet.** Official Downloader short codes are issued only by the AFTVnews URL Shortener at [go.aftvnews.com](https://go.aftvnews.com/). There is **no public API**; creation requires a human reCAPTCHA in a browser (about 2 minutes). Do not invent or paste an unverified number.
+
+**How codes work (2026):**
+
+1. You submit any HTTPS destination URL at [go.aftvnews.com](https://go.aftvnews.com/).
+2. After reCAPTCHA, AFTVnews stores a mapping and returns a **digits-only** code (e.g. `12345`) plus `aftv.news/12345`.
+3. The Downloader app (by AFTVnews) recognizes a pure-numeric entry, looks it up via that shortener, and loads the stored URL — so friends never type `.` or `/`.
+
+**Create a SteadyStream code yourself:**
+
+1. On a phone or computer, open **https://go.aftvnews.com/**
+2. Paste the APK URL (prefer the TinyURL above, or the long GitHub Releases URL).
+3. Check **I’m not a robot**, complete the captcha, click **Shorten**.
+4. Copy the large **numeric code** shown (and optionally `aftv.news/<code>`).
+5. On Fire Stick → Downloader → type **only the digits** → **Go**.
+6. Replace the placeholder below in this doc / README once you have verified the code downloads SteadyStream.
+
+```text
+Downloader code: (pending — generate at go.aftvnews.com; do not invent)
+```
+
+Submitted URLs on go.aftvnews.com are **public** (anyone who guesses digits can open them). Fine for a public APK; do not shorten private/signed links.
 
 To re-host after a rebuild:
 
@@ -67,7 +100,7 @@ To re-host after a rebuild:
 | **Cloudflare R2** / S3 / GCS | Public object URL or signed URL |
 | **Any static HTTPS** | Must end in `.apk` or set `Content-Type: application/vnd.android.package-archive` |
 
-Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking “download” after a captcha.
+Fire Stick Downloader needs a plain HTTPS URL (or an AFTVnews numeric code that resolves to one). Avoid pages that require clicking “download” after a captcha.
 
 ## 3. Friends install via Downloader
 
@@ -75,11 +108,13 @@ Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking
 
 1. Settings → My Fire TV → Developer options → turn **Apps from Unknown Sources** / **Installer** on for Downloader (wording varies by firmware).
 2. Get **Downloader** from the Amazon Appstore (silk browser → search “Downloader” if needed).
-3. Open Downloader → enter the **full HTTPS APK URL** → Go.
+3. Open Downloader → enter **one of**:
+   - the **numeric Downloader code** (once generated at go.aftvnews.com), or
+   - `tinyurl.com/2c55b9lc`, or
+   - the full GitHub Releases APK URL  
+   → **Go**.
 4. When the file finishes, tap **Install** → **Open**.
 5. Launch **SteadyStream** from Apps. Enter MegaOTT / M3U in Settings on the device (credentials stay local).
-
-Tip: Downloader can remember a short numeric code if you use its code feature with a hosted URL mapping — optional; a pasted URL is enough.
 
 ### Android phone / tablet
 
