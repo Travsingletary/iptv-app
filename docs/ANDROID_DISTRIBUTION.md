@@ -4,6 +4,29 @@ Sideload SteadyStream onto Fire Stick and Android phones the classic IPTV way: h
 
 Live betting / sportsbook overlays are **not implemented** — deferred to a future release. Do not expect betting UI in this APK.
 
+## Current hosted APK (v1.2.0-debug)
+
+| | |
+| --- | --- |
+| **Tag** | `steadystream-v1.2.0-debug` |
+| **versionName / versionCode** | `1.2.0` / `3` |
+| **Downloader URL** | https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.2.0-debug/SteadyStream-debug.apk |
+| **Short URL** | https://tinyurl.com/28lrnvja |
+| **SHA256** | `d9dcbc902af47ce7c66acbe96691826bd5f5b920df68cf0f8edd23002b58b75f` |
+| **Includes** | BYOK Assistant AI (#11: Settings → Assistant AI, paste own API keys) + channel surfing (#9) + playlist/perf (#8) |
+
+**Reinstall:** Uninstall the old SteadyStream app on the Fire Stick (recommended when jumping from v1.0.0 or v1.1.0), then paste the Downloader URL above → Go → Install → Open. Open **Settings → Assistant AI** and paste a provider API key for Live AI (on-device BYOK; no companion server required).
+
+**Note:** Older short links stay pinned to older builds — do **not** reuse them for this APK:
+
+| Short link | Points at |
+| --- | --- |
+| `tinyurl.com/2c55b9lc` | v1.0.0 (obsolete) |
+| `tinyurl.com/28fgrk8d` | v1.1.0 surfing-only (no BYOK) |
+| `tinyurl.com/28lrnvja` | **v1.2.0 BYOK** (this build) |
+
+AFTVnews numeric Downloader codes still need a human to pass captcha when registering a new URL.
+
 ## 1. Build the APK
 
 Requires Node 20+, JDK 17+ (21 works), and Android SDK (platform 36 + build-tools).
@@ -57,10 +80,10 @@ Upload `app-debug.apk` (or the release APK) somewhere friends can reach without 
 | **Cloudflare R2** / S3 / GCS | Public object URL or signed URL |
 | **Any static HTTPS** | Must end in `.apk` or set `Content-Type: application/vnd.android.package-archive` |
 
-Example (conceptual):
+Live release asset (paste into Downloader):
 
 ```text
-https://example.com/aether/aether-debug.apk
+https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.2.0-debug/SteadyStream-debug.apk
 ```
 
 Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking “download” after a captcha.
@@ -74,6 +97,7 @@ Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking
 3. Open Downloader → enter the **full HTTPS APK URL** → Go.
 4. When the file finishes, tap **Install** → **Open**.
 5. Launch **SteadyStream** from Apps. Enter MegaOTT / M3U in Settings on the device (credentials stay local).
+6. For Live AI: **Settings → Assistant AI** → paste your OpenAI / Groq / OpenRouter / custom key (BYOK). See `docs/AI_BYOK.md`.
 
 Tip: Downloader can remember a short numeric code if you use its code feature with a hosted URL mapping — optional; a pasted URL is enough.
 
@@ -97,10 +121,10 @@ Progressive Web App “Add to Home Screen” on Fire TV is usually insufficient 
 ## 5. Caveats
 
 - **Unknown sources** — friends must explicitly allow sideloading; this is normal for IPTV apps.
-- **Credentials** — MegaOTT username/password and M3U URLs stay in device storage (`localStorage` in the WebView). Do not put secrets in the APK, README, or GitHub Release notes.
+- **Credentials** — MegaOTT username/password, M3U URLs, and BYOK AI keys stay in device storage (`localStorage` in the WebView). Do not put secrets in the APK, README, or GitHub Release notes.
 - **`max_connections=1`** — many MegaOTT panels allow only one concurrent stream. Disable auto-alternate-on-error in Settings or a second stream can kick the first.
 - **Cleartext HTTP** — the Android wrapper allows `http://` portals (common for Xtream/MegaOTT). Prefer HTTPS when the panel supports it.
-- **Assistant Live AI** — needs a reachable `/api/assistant` with `OPENAI_API_KEY`, or client fallback keys. The packaged APK ships the SPA only; Mock AI works offline of the API. Point friends at demo pack first if you have not hosted the companion server.
+- **Assistant Live AI** — preferred path on APK is **Settings → Assistant AI** (BYOK). Optional: a reachable `/api/assistant` with `OPENAI_API_KEY` for browser/dev. The packaged APK ships the SPA only; Mock AI works offline of any key. Point friends at demo pack first if you have not hosted the companion server.
 - **Updates** — bump `versionCode` / `versionName` in `android/app/build.gradle`, rebuild, re-host the APK; friends re-download via Downloader.
 - **Legal** — bring-your-own legal playlist / provider credentials.
 
@@ -120,3 +144,4 @@ Share the machine’s LAN URL only on the same network, or deploy the static `di
 
 - Capacitor config: `capacitor.config.ts` (`appId` `tv.aether.player`)
 - Scripts: `npm run android:sync`, `npm run android:apk`, `npm run android:open`
+- BYOK docs: `docs/AI_BYOK.md`
