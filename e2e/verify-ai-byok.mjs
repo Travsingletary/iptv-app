@@ -1,9 +1,26 @@
 /**
- * Headless verify: Settings BYOK UI + mock mode without a key.
- * Usage: npm run verify:ai-byok
+ * Headless verify: Settings BYOK UI + mock/live toggle without a real provider key.
+ * Usage: AETHER_URL=http://127.0.0.1:5173 npm run verify:ai-byok
  */
-import { chromium } from 'playwright'
+import { createRequire } from 'node:module'
+import fs from 'node:fs'
+import { enterWithDemoPack } from './onboarding.mjs'
 
+function resolvePlaywright() {
+  const require = createRequire(import.meta.url)
+  try {
+    return require('playwright')
+  } catch {
+    const npxRoots = fs
+      .readdirSync('/home/ubuntu/.npm/_npx')
+      .map((name) => `/home/ubuntu/.npm/_npx/${name}/node_modules/playwright`)
+      .filter((p) => fs.existsSync(p))
+    if (!npxRoots.length) throw new Error('playwright not found')
+    return require(npxRoots[0])
+  }
+}
+
+const { chromium } = resolvePlaywright()
 const base = process.env.AETHER_URL || 'http://127.0.0.1:5173'
 
 function note(msg) {
@@ -11,9 +28,23 @@ function note(msg) {
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true })
-  const page = await browser.newPage()
-  await page.goto(`${base}/settings`, { waitUntil: 'networkidle' })
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: process.env.CHROME_PATH || '/usr/local/bin/google-chrome',
+    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  })
+  const context = await browser.newContext({ viewport: { width: 1400, height: 900 } })
+  const page = await context.newPage()
+
+  await page.goto(base, { waitUntil: 'networkidle' })
+  await page.evaluate(() => localStorage.clear())
+  await page.reload({ waitUntil: 'networkidle' })
+  await enterWithDemoPack(page)
+
+  const settingsBtn = page.getByTestId('nav-settings')
+  await settingsBtn.waitFor({ state: 'visible', timeout: 15_000 })
+  await settingsBtn.click()
+  await page.waitForTimeout(500)
 
   const section = page.getByTestId('ai-byok-section')
   if (!(await section.count())) throw new Error('Expected ai-byok-section')
@@ -25,6 +56,9 @@ async function main() {
   if (!/Mock AI|Live AI/i.test(indicatorText)) {
     throw new Error('Expected Mock AI or Live AI badge')
   }
+
+  // Scroll BYOK into view on TV-ish layout
+  await section.scrollIntoViewIfNeeded()
 
   const select = page.getByTestId('ai-provider-select')
   await select.selectOption('openrouter')
@@ -40,7 +74,7 @@ async function main() {
   }
   note(`masked key ok: ${masked}`)
 
-  await page.waitForTimeout(400)
+  await page.waitForTimeout(500)
   const liveText = await indicator.innerText()
   if (!/Live AI/i.test(liveText) || !/OpenRouter/i.test(liveText)) {
     throw new Error(`Expected Live AI · OpenRouter, got: ${liveText}`)
@@ -48,14 +82,13 @@ async function main() {
   note(`live badge: ${liveText.replace(/\s+/g, ' ').trim()}`)
 
   await page.getByTestId('ai-clear-key').click()
-  await page.waitForTimeout(400)
+  await page.waitForTimeout(500)
   const mockText = await indicator.innerText()
   if (!/Mock AI/i.test(mockText)) {
     throw new Error(`Expected Mock AI after clear, got: ${mockText}`)
   }
   note(`after clear: ${mockText.replace(/\s+/g, ' ').trim()}`)
 
-  // Ensure presets exist
   for (const value of ['openai', 'anthropic', 'gemini', 'groq', 'openrouter', 'custom']) {
     await select.selectOption(value)
   }

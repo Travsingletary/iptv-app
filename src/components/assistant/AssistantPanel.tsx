@@ -29,7 +29,7 @@ interface AssistantMessage {
   steps?: AgentStep[]
   needsConfirmation?: boolean
   pendingUserText?: string
-  source?: 'api' | 'local'
+  source?: 'api' | 'local' | 'byok'
   aiMode?: 'mock' | 'live'
 }
 
