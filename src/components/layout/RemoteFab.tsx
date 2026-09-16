@@ -5,7 +5,7 @@ import { useIptvStore } from '../../store/useIptvStore'
 /**
  * Persistent remote / OK affordance — toggles the TV overlay menu.
  * Fire Stick map (wired in App via fireStickRemote):
- * OK/Enter opens Live channel side panel when immersive · Back dismisses · Menu/R toggles · ↑↓ zap.
+ * OK/Enter opens Live channel side panel when immersive · Back dismisses · Menu/R toggles · ↑↓ zap (debounced) · 0–9 LCN.
  */
 export function RemoteFab() {
   const menuOpen = useIptvStore((s) => s.menuOpen)

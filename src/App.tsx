@@ -10,6 +10,12 @@ import { handleTvDirectionalKey } from './lib/tvFocus'
 import { hasActiveTvControl, resolveRemoteAction } from './lib/fireStickRemote'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { useIptvStore } from './store/useIptvStore'
+import {
+  cancelDigitEntry,
+  commitDigitEntry,
+  handleChannelDigit,
+  zapByDirection,
+} from './lib/surfingControls'
 
 function ViewRouter() {
   const view = useIptvStore((s) => s.view)
@@ -46,13 +52,10 @@ function focusSeedForView(view: string, menuOpen: boolean, overlayVisible: boole
 export default function App() {
   const onboarded = useIptvStore((s) => s.onboarded)
   const refreshDemoGuide = useIptvStore((s) => s.refreshDemoGuide)
-  const playChannel = useIptvStore((s) => s.playChannel)
   const setPlayer = useIptvStore((s) => s.setPlayer)
   const setView = useIptvStore((s) => s.setView)
   const setMenuOpen = useIptvStore((s) => s.setMenuOpen)
   const toggleMenu = useIptvStore((s) => s.toggleMenu)
-  const channels = useIptvStore((s) => s.channels)
-  const player = useIptvStore((s) => s.player)
   const menuOpen = useIptvStore((s) => s.menuOpen)
   const prefs = useIptvStore((s) => s.prefs)
 
@@ -132,6 +135,31 @@ export default function App() {
       const focusMode = focusSeedForView(view, menuOpen, overlayVisible)
       const focused = hasActiveTvControl(document.activeElement)
 
+      // Immersive number-pad channel entry (encourage surfing by LCN / index).
+      if (
+        !menuOpen &&
+        /^[0-9]$/.test(e.key) &&
+        view !== 'multiview' &&
+        view !== 'settings'
+      ) {
+        e.preventDefault()
+        handleChannelDigit(e.key)
+        return
+      }
+      if (
+        state.surfing.digitEntryActive &&
+        (e.key === 'Enter' || e.key === 'OK' || e.key === 'Select')
+      ) {
+        e.preventDefault()
+        commitDigitEntry()
+        return
+      }
+      if (state.surfing.digitEntryActive && (e.key === 'Escape' || e.key === 'Backspace')) {
+        e.preventDefault()
+        cancelDigitEntry()
+        return
+      }
+
       const action = resolveRemoteAction(
         e,
         { menuOpen, overlayVisible, focusMode },
@@ -174,7 +202,19 @@ export default function App() {
         return
       }
 
-      // Spatial D-pad before channel zap
+      // Channel zap before spatial focus so chrome buttons do not steal ↑↓.
+      if (action === 'channel-zap-up') {
+        e.preventDefault()
+        zapByDirection(-1)
+        return
+      }
+      if (action === 'channel-zap-down') {
+        e.preventDefault()
+        zapByDirection(1)
+        return
+      }
+
+      // Spatial D-pad (overlay / chrome left-right)
       if (
         handleTvDirectionalKey(e, document, {
           seedIfUnfocused: focusMode,
@@ -184,22 +224,13 @@ export default function App() {
       }
 
       if (action === 'focus-nav') {
-        // Directional key with nowhere to move — don't fall through to zap.
+        // Directional key with nowhere to move.
         return
       }
-
-      const live = channels.filter((c) => c.kind === 'live')
-      const idx = live.findIndex((c) => c.id === player.channelId)
 
       if (e.key === ' ') {
         e.preventDefault()
         setPlayer({ paused: !useIptvStore.getState().player.paused })
-      } else if (action === 'channel-zap-up' && idx >= 0) {
-        e.preventDefault()
-        playChannel(live[(idx - 1 + live.length) % live.length].id)
-      } else if (action === 'channel-zap-down' && idx >= 0) {
-        e.preventDefault()
-        playChannel(live[(idx + 1) % live.length].id)
       } else if (e.key === 'm' || e.key === 'M') {
         setPlayer({ muted: !useIptvStore.getState().player.muted })
       } else if (e.key === 'g' || e.key === 'G') {
@@ -214,7 +245,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [channels, player.channelId, playChannel, setPlayer, setView, setMenuOpen, toggleMenu])
+  }, [setPlayer, setView, setMenuOpen, toggleMenu])
 
   if (!onboarded) return <OnboardingPage />
 

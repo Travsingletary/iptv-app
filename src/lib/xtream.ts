@@ -166,6 +166,7 @@ function mapRow(
       : row.category_id != null
         ? String(row.category_id)
         : undefined
+  const lcn = Number(row.num)
   return {
     id: `${idPrefix}_${kind}_${streamId}`,
     name: row.name,
@@ -175,6 +176,7 @@ function mapRow(
     kind,
     logo: row.stream_icon || row.cover,
     tvgId: row.epg_channel_id,
+    number: Number.isFinite(lcn) && lcn > 0 ? Math.floor(lcn) : undefined,
     catchup: truthyArchive(row.tv_archive),
     poster: row.cover || row.stream_icon,
     rating: row.rating,

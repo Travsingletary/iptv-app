@@ -6,7 +6,7 @@ import { DEMO_CHANNELS, DEMO_EPG } from './demoData'
 describe('parseM3U', () => {
   it('parses channels with groups and logos', () => {
     const raw = `#EXTM3U
-#EXTINF:-1 tvg-id="news1" tvg-logo="http://logo" group-title="News",Pulse
+#EXTINF:-1 tvg-id="news1" tvg-logo="http://logo" tvg-chno="12" group-title="News",Pulse
 http://example.com/a.m3u8
 #EXTINF:-1 group-title="VOD Movies",Action Flick
 http://example.com/b.m3u8
@@ -15,6 +15,7 @@ http://example.com/b.m3u8
     expect(channels).toHaveLength(2)
     expect(channels[0].name).toBe('Pulse')
     expect(channels[0].group).toBe('News')
+    expect(channels[0].number).toBe(12)
     expect(channels[0].kind).toBe('live')
     expect(channels[1].kind).toBe('movie')
   })

@@ -93,7 +93,8 @@ export function resolveRemoteAction(
   }
 
   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-    if (state.focusMode || state.menuOpen) return 'focus-nav'
+    // Overlay menu owns vertical focus; immersive + chrome still zap (TiviMate-like).
+    if (state.menuOpen) return 'focus-nav'
     return event.key === 'ArrowUp' ? 'channel-zap-up' : 'channel-zap-down'
   }
 

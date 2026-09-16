@@ -23,6 +23,7 @@ import type {
   PlayerState,
   PlaylistSource,
   ProgramReminder,
+  SurfingState,
   UiPrefs,
   VodCategory,
 } from '../types/iptv'
@@ -78,6 +79,8 @@ interface IptvState {
   channels: Channel[]
   /** Lazy VOD/series categories from MegaOTT (titles load on demand). */
   vodCategories: VodCategory[]
+  /** Ephemeral zap OSD / digit pad (not persisted). */
+  surfing: SurfingState
   /** Category ids that have been fetched into `channels`. */
   vodLoadedCategoryIds: string[]
   vodLoadingCategoryId: string | null
@@ -106,7 +109,10 @@ interface IptvState {
   setSearch: (q: string) => void
   setSelectedGroup: (group: string | null) => void
   toggleFavorite: (channelId: string) => void
-  playChannel: (channelId: string) => void
+  playChannel: (channelId: string, opts?: { quiet?: boolean }) => void
+  /** Preview-only highlight during rapid zap (does not retune until playChannel). */
+  setSurfing: (patch: Partial<SurfingState>) => void
+  clearSurfingHud: () => void
   /** Force remount of the current stream (retry after error / stall). */
   retryPlayback: () => void
   setPlayer: (patch: Partial<PlayerState>) => void
@@ -165,6 +171,13 @@ const defaultPlayer: PlayerState = {
   playbackNonce: 0,
 }
 
+const defaultSurfing: SurfingState = {
+  previewChannelId: null,
+  osdVisible: false,
+  digitBuffer: '',
+  digitEntryActive: false,
+}
+
 const defaultPrefs: UiPrefs = {
   showClock: true,
   autoHideControlsMs: 4200,
@@ -193,6 +206,7 @@ export const useIptvStore = create<IptvState>()(
       search: '',
       selectedGroup: null,
       player: defaultPlayer,
+      surfing: defaultSurfing,
       prefs: defaultPrefs,
       reminders: loadReminders(),
       reminderToasts: [],
@@ -234,7 +248,7 @@ export const useIptvStore = create<IptvState>()(
           return { favorites, profiles }
         }),
 
-      playChannel: (channelId) =>
+      playChannel: (channelId, opts) =>
         set((s) => {
           if (s.player.channelId && s.player.channelId !== channelId) {
             void trackEvent('channel_switch', {
@@ -242,15 +256,17 @@ export const useIptvStore = create<IptvState>()(
               toChannelId: channelId,
             })
           }
+          const quiet = Boolean(opts?.quiet)
           // TV-first: tuning updates the always-on canvas without ripping the user
           // out of Home/Guide/Settings overlays. Callers that need a view change
           // (e.g. Live list, VOD play) call setView themselves.
+          // Quiet zaps keep the full chrome down so the lightweight OSD can lead.
           return {
             player: {
               ...s.player,
               channelId,
               paused: false,
-              overlayVisible: true,
+              overlayVisible: quiet ? false : true,
               error: null,
               buffering: true,
               fallbackSuggestions: [],
@@ -258,8 +274,31 @@ export const useIptvStore = create<IptvState>()(
             },
             bufferingStartedAt: Date.now(),
             recentIds: [channelId, ...s.recentIds.filter((id) => id !== channelId)].slice(0, 24),
+            surfing: {
+              ...s.surfing,
+              previewChannelId: channelId,
+              // Keep OSD if already showing; digit pad clears on tune.
+              digitBuffer: '',
+              digitEntryActive: false,
+            },
           }
         }),
+
+      setSurfing: (patch) =>
+        set((s) => ({
+          surfing: { ...s.surfing, ...patch },
+        })),
+
+      clearSurfingHud: () =>
+        set((s) => ({
+          surfing: {
+            ...s.surfing,
+            previewChannelId: s.player.channelId,
+            osdVisible: false,
+            digitBuffer: '',
+            digitEntryActive: false,
+          },
+        })),
 
       retryPlayback: () =>
         set((s) => {
@@ -967,7 +1006,7 @@ export const useIptvStore = create<IptvState>()(
       })),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<IptvState>
-        const merged = { ...current, ...saved }
+        const merged = { ...current, ...saved, surfing: defaultSurfing }
         // Always refresh demo pack channels/EPG so stream URL fixes apply.
         if (!saved.activeSourceId || saved.activeSourceId === 'demo') {
           merged.sources = [DEMO_SOURCE]
