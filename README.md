@@ -85,7 +85,7 @@ App id: `tv.aether.player` · Capacitor wraps the Vite SPA. Live betting is **de
 | Capability                    | Without secrets (demo)            | With credentials                           |
 | ----------------------------- | --------------------------------- | ------------------------------------------ |
 | Playback / guide / multi-view | Full demo HLS pack                | Your M3U / MegaOTT playlist                |
-| Assistant                     | **Mock AI** (deterministic tools) | **Live AI** via `OPENAI_API_KEY`           |
+| Assistant                     | **Mock AI** (deterministic tools) | **Live AI** via Settings BYOK or `OPENAI_API_KEY` |
 | Reminders / telemetry         | `localStorage`                    | Supabase sync (`VITE_SUPABASE_*`)          |
 | Account / RLS                 | Auth section disabled             | Sign in → rows tagged with `user_id`       |
 | Catch-up                      | Stub URL (`aether_catchup=`)      | Real timeshift when panel has `tv_archive` |
@@ -122,9 +122,10 @@ Copy `.env.example` → `.env.local`:
 | `OPENAI_API_KEY`                                   | Enables real multi-round tools loop on the server           |
 | `AI_PROVIDER` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | Optional OpenAI-compatible gateway                          |
 | `VITE_OPENAI_API_KEY` etc.                         | Client-only fallback when `/api/assistant` is absent        |
+| Settings → Assistant AI (BYOK)                     | Preferred for Fire Stick testers — see `docs/AI_BYOK.md`    |
 | `PORT`                                             | Companion server port (`npm run start:api`, default `4173`) |
 
-Without AI keys the deterministic mock agent still runs (Settings shows **Mock AI**). Without Supabase, events and reminders stay in `localStorage` and Auth stays disabled.
+Without AI keys the deterministic mock agent still runs (Settings shows **Mock AI**). Testers can paste a provider key in **Settings → Assistant AI** (on-device BYOK; works on APK). Without Supabase, events and reminders stay in `localStorage` and Auth stays disabled.
 
 ### MegaOTT fields (Settings)
 

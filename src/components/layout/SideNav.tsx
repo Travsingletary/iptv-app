@@ -92,6 +92,8 @@ export function SideNav({
               key={item.id}
               type="button"
               data-tv-focus
+              data-testid={`nav-${item.id}`}
+              aria-label={item.label}
               onClick={() => onNav(item.id)}
               className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition focus-visible:focus-ring ${
                 active

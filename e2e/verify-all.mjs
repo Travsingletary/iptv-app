@@ -20,6 +20,7 @@ const scripts = [
   'verify-phase5.mjs',
   'verify-phase6.mjs',
   'verify-finish.mjs',
+  'verify-ai-byok.mjs',
 ]
 
 function run(script) {
