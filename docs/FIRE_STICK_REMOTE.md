@@ -10,7 +10,7 @@ Live betting / sportsbook overlays are **deferred** — not part of this remote 
 | --- | --- | --- | --- |
 | **D-pad ↑ / ↓** | `ArrowUp` / `ArrowDown` | Channel zap | Spatial focus (nav, chips, list) |
 | **D-pad ← / →** | `ArrowLeft` / `ArrowRight` | Focus player chrome / volume scrub when chrome visible; else ignored | Spatial focus across rails / chips / controls |
-| **Select / OK** | `Enter` | Opens Remote menu | Activates focused control |
+| **Select / OK** | `Enter` | Opens **Live channel side panel** over video (TiviMate-like) | Activates focused control |
 | **Back** | `Escape` / `Backspace` | Hide chrome if shown; if already immersive → **no-op** (do not unload player) | Dismiss overlay → immersive TV |
 | **Menu** | `ContextMenu` / Android `KEYCODE_MENU` (82) | Toggle overlay | Toggle overlay |
 | **R** (dev/web) | `r` / `R` | Toggle overlay (same as Menu) | Toggle overlay |
@@ -60,7 +60,7 @@ Add `android:banner="@drawable/…"` on the application/activity for the Android
 
 1. Sideload APK (see `docs/ANDROID_DISTRIBUTION.md`).
 2. Confirm SteadyStream appears in Fire TV Apps (LEANBACK_LAUNCHER).
-3. D-pad: focus rings move · OK opens menu · Back returns to immersive · ↑↓ zaps when immersive.
+3. D-pad: focus rings move · OK opens Live channel side panel · Back returns to immersive · ↑↓ zaps when immersive.
 
 ### Do not
 

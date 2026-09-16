@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { DEMO_CHANNELS, DEMO_EPG, DEMO_SOURCE, refreshDemoEpg } from '../lib/demoData'
 import {
   ingestXtream,
@@ -62,6 +62,11 @@ import {
   type AutomationAction,
   type AutomationRule,
 } from '../lib/automationRules'
+import {
+  channelsForPersistence,
+  channelsForPersistenceTight,
+  shouldBackgroundRefreshLiveCatalog,
+} from '../lib/persistChannels'
 
 interface IptvState {
   onboarded: boolean
@@ -112,6 +117,8 @@ interface IptvState {
   importXtream: (
     creds: XtreamCredentials,
   ) => Promise<{ message: string; usedDemoFallback: boolean }>
+  /** Re-fetch live (+ category list) from the active MegaOTT/Xtream panel without wiping loaded VOD. */
+  refreshLiveCatalog: () => Promise<{ message: string; ok: boolean; liveCount: number }>
   loadVodCategory: (categoryId: string) => Promise<{ message: string; ok: boolean }>
   playVodTitle: (channelId: string) => Promise<void>
   removeSource: (id: string) => void
@@ -565,6 +572,87 @@ export const useIptvStore = create<IptvState>()(
         return { message: result.message, usedDemoFallback: result.usedDemoFallback }
       },
 
+      refreshLiveCatalog: async () => {
+        const state = get()
+        const source =
+          state.sources.find((src) => src.id === state.activeSourceId) ??
+          state.sources.find((src) => src.type === 'megaott' || src.type === 'xtream')
+        if (!source?.url || !source.username || !source.password) {
+          return {
+            ok: false,
+            liveCount: selectLiveChannels(state.channels).length,
+            message: 'Connect MegaOTT / Xtream in Settings to refresh the live catalog.',
+          }
+        }
+        if (source.type !== 'megaott' && source.type !== 'xtream') {
+          return {
+            ok: false,
+            liveCount: selectLiveChannels(state.channels).length,
+            message: 'Live refresh is only available for MegaOTT / Xtream panels.',
+          }
+        }
+
+        const result = await ingestXtream(
+          {
+            server: source.url,
+            username: source.username,
+            password: source.password,
+            provider: source.type === 'megaott' ? 'megaott' : 'xtream',
+          },
+          { demoOnFailure: false },
+        ).catch((err: unknown) => ({
+          ok: false as const,
+          usedDemoFallback: true,
+          message: err instanceof Error ? err.message : 'Live catalog refresh failed.',
+          liveCount: 0,
+          channels: [] as Channel[],
+          vodCategories: [] as VodCategory[],
+          source,
+          vodCount: 0,
+          seriesCount: 0,
+          vodDeferred: true,
+        }))
+
+        if (!result.ok || result.usedDemoFallback) {
+          return {
+            ok: false,
+            liveCount: selectLiveChannels(get().channels).length,
+            message: result.message || 'Live catalog refresh failed.',
+          }
+        }
+
+        set((s) => {
+          const vodKeep = s.channels.filter((c) => c.kind === 'movie' || c.kind === 'series')
+          return {
+            sources: s.sources.map((src) =>
+              src.id === source.id
+                ? {
+                    ...src,
+                    name: result.source.name,
+                    url: result.source.url,
+                    username: result.source.username,
+                    password: result.source.password,
+                  }
+                : src,
+            ),
+            channels: [...result.channels, ...vodKeep],
+            vodCategories: result.vodCategories.length ? result.vodCategories : s.vodCategories,
+            // Keep already-loaded VOD category ids that still exist.
+            vodLoadedCategoryIds: s.vodLoadedCategoryIds.filter((id) =>
+              (result.vodCategories.length ? result.vodCategories : s.vodCategories).some(
+                (c) => c.id === id,
+              ),
+            ),
+          }
+        })
+
+        return {
+          ok: true,
+          liveCount: result.liveCount,
+          message: result.message,
+        }
+      },
+
       loadVodCategory: async (categoryId) => {
         const state = get()
         const category = state.vodCategories.find((c) => c.id === categoryId)
@@ -831,11 +919,8 @@ export const useIptvStore = create<IptvState>()(
     {
       name: 'aether-iptv-v2',
       partialize: (s) => {
-        const live = s.channels.filter((c) => c.kind === 'live')
-        const vod = s.channels.filter((c) => c.kind !== 'live')
-        // Prefer live for persistence; keep a small VOD slice if room remains.
-        const persistChannels =
-          s.channels.length < 500 ? s.channels : [...live, ...vod].slice(0, 500)
+        // Persist the full live catalog (MegaOTT ~7k). Panel VOD stays lazy — never snapshotted.
+        const persistChannels = channelsForPersistence(s.channels)
         return {
           onboarded: s.onboarded,
           favorites: s.favorites,
@@ -848,6 +933,38 @@ export const useIptvStore = create<IptvState>()(
           channels: persistChannels,
         }
       },
+      storage: createJSONStorage(() => ({
+        getItem: (name) => localStorage.getItem(name),
+        removeItem: (name) => localStorage.removeItem(name),
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, value)
+            return
+          } catch {
+            /* QuotaExceeded — compact logos out of the serialized snapshot */
+          }
+          try {
+            const parsed = JSON.parse(value) as {
+              state?: { channels?: Channel[] }
+              version?: number
+            }
+            if (parsed.state?.channels) {
+              parsed.state.channels = channelsForPersistenceTight(parsed.state.channels)
+            }
+            localStorage.setItem(name, JSON.stringify(parsed))
+            return
+          } catch {
+            /* fall through */
+          }
+          try {
+            const parsed = JSON.parse(value) as { state?: Record<string, unknown>; version?: number }
+            if (parsed.state) parsed.state.channels = []
+            localStorage.setItem(name, JSON.stringify(parsed))
+          } catch {
+            /* ignore */
+          }
+        },
+      })),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<IptvState>
         const merged = { ...current, ...saved }
@@ -882,6 +999,23 @@ export const useIptvStore = create<IptvState>()(
           ...(saved.prefs ?? {}),
         }
         return merged
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        const active =
+          state.sources.find((s) => s.id === state.activeSourceId) ??
+          state.sources.find((s) => s.type === 'megaott' || s.type === 'xtream')
+        const liveCount = state.channels.filter((c) => c.kind === 'live').length
+        if (
+          shouldBackgroundRefreshLiveCatalog({
+            sourceType: active?.type,
+            liveCount,
+          })
+        ) {
+          queueMicrotask(() => {
+            void useIptvStore.getState().refreshLiveCatalog()
+          })
+        }
       },
     },
   ),

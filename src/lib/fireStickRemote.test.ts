@@ -46,12 +46,12 @@ describe('resolveRemoteAction', () => {
     focusMode: true,
   }
 
-  it('OK opens menu when immersive and nothing focused', () => {
+  it('OK opens Live channel browser when immersive and nothing focused', () => {
     expect(
       resolveRemoteAction({ key: 'Enter', code: 'Enter', keyCode: 13 }, immersive, {
         hasFocusedControl: false,
       }),
-    ).toBe('open-menu')
+    ).toBe('open-live-browser')
   })
 
   it('OK activates focused control when overlay open', () => {

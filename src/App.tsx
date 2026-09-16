@@ -79,10 +79,24 @@ export default function App() {
     return () => window.cancelAnimationFrame(id)
   }, [onboarded])
 
-  // When the Remote overlay opens, seed focus onto SideNav / first TV control.
+  // When the Remote overlay opens, seed focus onto Live list (TiviMate) or SideNav.
   useEffect(() => {
     if (!menuOpen) return
     const id = window.requestAnimationFrame(() => {
+      const view = useIptvStore.getState().view
+      if (view === 'live') {
+        const onAir = document.querySelector<HTMLElement>(
+          '[data-testid="live-channel-on-air"], [data-on-air="true"]',
+        )
+        if (onAir) {
+          onAir.focus()
+          return
+        }
+        document
+          .querySelector<HTMLElement>('[data-testid="live-channel-list"] [data-tv-focus]')
+          ?.focus()
+        return
+      }
       const first = document.querySelector<HTMLElement>(
         'aside [data-tv-focus], [data-testid="remote-back"], [data-tv-focus]',
       )
@@ -127,6 +141,12 @@ export default function App() {
       if (action === 'toggle-menu') {
         e.preventDefault()
         toggleMenu()
+        return
+      }
+      if (action === 'open-live-browser') {
+        e.preventDefault()
+        // TiviMate: OK while watching opens the Live channel side panel over video.
+        setView('live')
         return
       }
       if (action === 'open-menu') {

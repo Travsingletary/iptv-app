@@ -386,8 +386,11 @@ export function SettingsPage() {
   const importM3UText = useIptvStore((s) => s.importM3UText)
   const importM3UUrl = useIptvStore((s) => s.importM3UUrl)
   const importXtream = useIptvStore((s) => s.importXtream)
+  const refreshLiveCatalog = useIptvStore((s) => s.refreshLiveCatalog)
   const removeSource = useIptvStore((s) => s.removeSource)
   const refreshDemoGuide = useIptvStore((s) => s.refreshDemoGuide)
+  const liveCount = useIptvStore((s) => s.channels.filter((c) => c.kind === 'live').length)
+  const vodCategoryCount = useIptvStore((s) => s.vodCategories.length)
 
   const [name, setName] = useState('My Playlist')
   const [url, setUrl] = useState('')
@@ -568,7 +571,36 @@ export function SettingsPage() {
           >
             Refresh demo EPG
           </button>
+          <button
+            type="button"
+            data-testid="refresh-live-catalog"
+            data-tv-focus
+            disabled={busy}
+            onClick={() => {
+              void (async () => {
+                setBusy(true)
+                setStatus(null)
+                try {
+                  const result = await refreshLiveCatalog()
+                  setStatus(result.message)
+                } catch (err) {
+                  setStatus(err instanceof Error ? err.message : 'Refresh failed')
+                } finally {
+                  setBusy(false)
+                }
+              })()
+            }}
+            className="rounded-full border border-ember-400/40 bg-ember-500/10 px-4 py-2 text-sm text-ember-200 hover:border-ember-400/70 disabled:opacity-40"
+          >
+            {busy ? 'Refreshing…' : 'Refresh live catalog'}
+          </button>
         </div>
+        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-mist-400" data-testid="catalog-counts">
+          {liveCount.toLocaleString()} live in memory
+          {vodCategoryCount > 0
+            ? ` · ${vodCategoryCount.toLocaleString()} VOD categories (titles load on browse)`
+            : ''}
+        </p>
       </section>
 
       <section
