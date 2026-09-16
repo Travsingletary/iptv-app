@@ -4,6 +4,21 @@ Sideload SteadyStream onto Fire Stick and Android phones the classic IPTV way: h
 
 Live betting / sportsbook overlays are **not implemented** — deferred to a future release. Do not expect betting UI in this APK.
 
+## Current hosted APK (v1.1.0-debug)
+
+| | |
+| --- | --- |
+| **Tag** | `steadystream-v1.1.0-debug` |
+| **versionName / versionCode** | `1.1.0` / `2` |
+| **Downloader URL** | https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.1.0-debug/SteadyStream-debug.apk |
+| **Short URL** | https://tinyurl.com/28fgrk8d |
+| **SHA256** | `340723b40920ada6ab94f7014e2a778cedc53dc0704d420d49b0a6310f5fbd4c` |
+| **Includes** | Channel surfing (#9: zap OSD, debounced zap, number pad, hop strip) + playlist/perf (#8: full playlist, virtualized lists, TiviMate Live rail) |
+
+**Reinstall:** Uninstall the old SteadyStream app on the Fire Stick (optional but recommended when jumping from v1.0.0), then paste the Downloader URL above → Go → Install → Open.
+
+**Note:** The older short link `tinyurl.com/2c55b9lc` still points at **v1.0.0** — do not use it for this rebuild. AFTVnews numeric Downloader codes still need a human to pass captcha when registering a new URL.
+
 ## 1. Build the APK
 
 Requires Node 20+, JDK 17+ (21 works), and Android SDK (platform 36 + build-tools).
@@ -57,10 +72,10 @@ Upload `app-debug.apk` (or the release APK) somewhere friends can reach without 
 | **Cloudflare R2** / S3 / GCS | Public object URL or signed URL |
 | **Any static HTTPS** | Must end in `.apk` or set `Content-Type: application/vnd.android.package-archive` |
 
-Example (conceptual):
+Live release asset (paste into Downloader):
 
 ```text
-https://example.com/aether/aether-debug.apk
+https://github.com/Travsingletary/iptv-app/releases/download/steadystream-v1.1.0-debug/SteadyStream-debug.apk
 ```
 
 Fire Stick Downloader needs a plain HTTPS URL. Avoid pages that require clicking “download” after a captcha.
