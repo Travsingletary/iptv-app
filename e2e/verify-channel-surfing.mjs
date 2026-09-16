@@ -84,11 +84,9 @@ const osdVisible = await page.locator('[data-testid="zap-osd"]').count()
 note(`zap_osd_visible=${osdVisible} samples=${osdNames.length}`)
 await page.screenshot({ path: path.join(outDir, 'channel_surfing_zap_osd.png') })
 
-// Number pad
+// Number pad — channel 3 (Arena Sports HD in demo pack)
 await fire('3')
-await page.waitForTimeout(80)
-await fire('0')
-await page.waitForTimeout(100)
+await page.waitForTimeout(120)
 const digitOverlay = await page.locator('[data-testid="channel-number-overlay"]').count()
 const digits = await page.locator('[data-testid="channel-number-digits"]').textContent()
 note(`digit_overlay=${digitOverlay} digits=${digits}`)
@@ -116,10 +114,24 @@ const ok =
   osdNames.length >= 3 &&
   digitOverlay === 1 &&
   String(digits || '').includes('3') &&
+  afterCommitOsd >= 1 &&
   liveRail === 1 &&
   hopStrip === 1
 
 safeWriteFile(path.join(outDir, 'channel_surfing_verify.log'), log.join('\n') + '\n')
+try {
+  for (const name of [
+    'channel_surfing_zap_osd.png',
+    'channel_surfing_number_pad.png',
+    'channel_surfing_hop_strip.png',
+    'channel_surfing_verify.log',
+  ]) {
+    const src = path.join(outDir, name)
+    if (fs.existsSync(src)) fs.copyFileSync(src, path.join('/opt/cursor/artifacts', name))
+  }
+} catch (err) {
+  note(`publish_warn=${err instanceof Error ? err.message : err}`)
+}
 await browser.close()
 
 if (!ok) {
