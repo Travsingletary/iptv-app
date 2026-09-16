@@ -51,6 +51,54 @@ export interface ProviderRoundResult {
   finishReason?: string
 }
 
+/** Structured failure for Settings / assistant UX (never includes the API key). */
+export interface ProviderCallError {
+  code: 'cors' | 'auth' | 'http' | 'network' | 'empty' | 'config'
+  message: string
+  status?: number
+}
+
+let lastProviderError: ProviderCallError | null = null
+
+export function getLastProviderError(): ProviderCallError | null {
+  return lastProviderError
+}
+
+export function clearLastProviderError(): void {
+  lastProviderError = null
+}
+
+function setProviderError(error: ProviderCallError): null {
+  lastProviderError = error
+  return null
+}
+
+function classifyFetchFailure(err: unknown, status?: number): ProviderCallError {
+  const raw = err instanceof Error ? err.message : String(err ?? 'unknown')
+  if (/Failed to fetch|NetworkError|CORS|cross-origin|Load failed/i.test(raw)) {
+    return {
+      code: 'cors',
+      message:
+        'Provider blocked the browser/WebView request (often CORS). Use OpenRouter, Groq, or set an API proxy URL in Settings.',
+    }
+  }
+  if (status === 401 || status === 403) {
+    return {
+      code: 'auth',
+      status,
+      message: 'API key rejected (401/403). Check the key and provider preset.',
+    }
+  }
+  if (typeof status === 'number') {
+    return {
+      code: 'http',
+      status,
+      message: `Provider HTTP ${status}. ${raw.slice(0, 160)}`,
+    }
+  }
+  return { code: 'network', message: raw.slice(0, 200) || 'Network error talking to the provider.' }
+}
+
 /** @deprecated Prefer ProviderRoundResult + runProviderToolLoop */
 export interface ProviderChatResult {
   content: string
@@ -177,11 +225,157 @@ function processEnv(key: string): string | undefined {
   }
 }
 
-/** Single chat/completions round. */
+function isAnthropicProvider(options: ProviderChatOptions): boolean {
+  const base = (options.baseUrl || '').toLowerCase()
+  // Messages API only against Anthropic hosts — never when using an OpenAI-compatible proxy/relay.
+  if (base.includes('api.anthropic.com')) return true
+  if (!base && (options.provider || '').toLowerCase() === 'anthropic') return true
+  return false
+}
+
+/** Map OpenAI-style tools to Anthropic tool definitions. */
+function toAnthropicTools(
+  tools: ProviderToolDefinition[],
+): Array<{ name: string; description: string; input_schema: Record<string, unknown> }> {
+  return tools.map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+    input_schema: t.function.parameters?.type
+      ? t.function.parameters
+      : { type: 'object', properties: {} },
+  }))
+}
+
+function toAnthropicMessages(messages: ProviderMessage[]): {
+  system: string
+  messages: Array<Record<string, unknown>>
+} {
+  let system = ''
+  const out: Array<Record<string, unknown>> = []
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      system = system ? `${system}\n${msg.content}` : msg.content
+      continue
+    }
+    if (msg.role === 'tool') {
+      out.push({
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: msg.tool_call_id || 'tool',
+            content: msg.content,
+          },
+        ],
+      })
+      continue
+    }
+    if (msg.role === 'assistant' && msg.tool_calls?.length) {
+      const content: Array<Record<string, unknown>> = []
+      if (msg.content) content.push({ type: 'text', text: msg.content })
+      for (const call of msg.tool_calls) {
+        let input: Record<string, unknown> = {}
+        try {
+          input = JSON.parse(call.function.arguments || '{}') as Record<string, unknown>
+        } catch {
+          input = {}
+        }
+        content.push({
+          type: 'tool_use',
+          id: call.id,
+          name: call.function.name,
+          input,
+        })
+      }
+      out.push({ role: 'assistant', content })
+      continue
+    }
+    out.push({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.content })
+  }
+  return { system, messages: out }
+}
+
+async function anthropicMessagesRound(
+  options: ProviderChatOptions,
+): Promise<ProviderRoundResult | null> {
+  const base = (options.baseUrl || 'https://api.anthropic.com').replace(/\/$/, '')
+  const model = options.model || 'claude-3-5-haiku-latest'
+  const tools = options.tools ?? DEFAULT_TOOLS
+  const { system, messages } = toAnthropicMessages(options.messages)
+
+  try {
+    const res = await fetch(`${base}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': options.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1024,
+        temperature: options.temperature ?? 0.3,
+        system: system || undefined,
+        messages,
+        tools: tools.length ? toAnthropicTools(tools) : undefined,
+      }),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return setProviderError(classifyFetchFailure(new Error(text || res.statusText), res.status))
+    }
+    const json = (await res.json()) as {
+      content?: Array<{
+        type?: string
+        text?: string
+        id?: string
+        name?: string
+        input?: Record<string, unknown>
+      }>
+      stop_reason?: string
+    }
+    const blocks = json.content ?? []
+    const content = blocks
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text || '')
+      .join('\n')
+      .trim()
+    const toolCalls: ProviderToolCall[] = blocks
+      .filter((b) => b.type === 'tool_use' && b.name)
+      .map((b) => ({
+        id: b.id || `tool_${b.name}`,
+        type: 'function' as const,
+        function: {
+          name: b.name || '',
+          arguments: JSON.stringify(b.input ?? {}),
+        },
+      }))
+    if (!content && !toolCalls.length) {
+      return setProviderError({ code: 'empty', message: 'Anthropic returned an empty response.' })
+    }
+    lastProviderError = null
+    return {
+      content,
+      toolCalls,
+      rawModel: model,
+      finishReason: json.stop_reason,
+    }
+  } catch (err) {
+    return setProviderError(classifyFetchFailure(err))
+  }
+}
+
+/** Single chat/completions round (OpenAI-compatible) or Anthropic Messages. */
 export async function chatCompletionsRound(
   options: ProviderChatOptions,
 ): Promise<ProviderRoundResult | null> {
-  if (!options.apiKey) return null
+  if (!options.apiKey) {
+    return setProviderError({ code: 'config', message: 'No API key configured.' })
+  }
+
+  if (isAnthropicProvider(options)) {
+    return anthropicMessagesRound(options)
+  }
 
   const base = (
     options.baseUrl ||
@@ -191,12 +385,19 @@ export async function chatCompletionsRound(
   const model = options.model || processEnv('OPENAI_MODEL') || 'gpt-4o-mini'
 
   try {
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      authorization: `Bearer ${options.apiKey}`,
+    }
+    // OpenRouter ranking / app identity (optional, harmless elsewhere)
+    if (base.includes('openrouter.ai')) {
+      headers['HTTP-Referer'] = 'https://steadystream.app'
+      headers['X-Title'] = 'SteadyStream'
+    }
+
     const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${options.apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         temperature: options.temperature ?? 0.3,
@@ -204,7 +405,10 @@ export async function chatCompletionsRound(
         tools: options.tools ?? DEFAULT_TOOLS,
       }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return setProviderError(classifyFetchFailure(new Error(text || res.statusText), res.status))
+    }
     const json = (await res.json()) as {
       choices?: Array<{
         finish_reason?: string
@@ -218,15 +422,54 @@ export async function chatCompletionsRound(
     const message = choice?.message
     const content = message?.content?.trim() || ''
     const toolCalls = message?.tool_calls ?? []
-    if (!content && !toolCalls.length) return null
+    if (!content && !toolCalls.length) {
+      return setProviderError({ code: 'empty', message: 'Provider returned an empty response.' })
+    }
+    lastProviderError = null
     return {
       content,
       toolCalls,
       rawModel: model,
       finishReason: choice?.finish_reason,
     }
-  } catch {
-    return null
+  } catch (err) {
+    return setProviderError(classifyFetchFailure(err))
+  }
+}
+
+/**
+ * Lightweight connectivity probe for Settings (no tools).
+ * Never logs the API key.
+ */
+export async function probeProviderConnection(options: {
+  apiKey: string
+  provider?: string
+  baseUrl?: string
+  model?: string
+}): Promise<{ ok: boolean; detail: string; model?: string }> {
+  clearLastProviderError()
+  if (!options.apiKey.trim()) {
+    return { ok: false, detail: 'Enter an API key first.' }
+  }
+  const round = await chatCompletionsRound({
+    apiKey: options.apiKey.trim(),
+    provider: options.provider,
+    baseUrl: options.baseUrl,
+    model: options.model,
+    messages: [
+      { role: 'system', content: 'Reply with exactly: ok' },
+      { role: 'user', content: 'ping' },
+    ],
+    tools: [],
+    temperature: 0,
+  })
+  if (round) {
+    return { ok: true, detail: `Reachable · model ${round.rawModel}`, model: round.rawModel }
+  }
+  const err = getLastProviderError()
+  return {
+    ok: false,
+    detail: err?.message || 'Provider probe failed.',
   }
 }
 
@@ -287,6 +530,7 @@ export async function runProviderToolLoop(
   },
 ): Promise<ProviderToolLoopResult | null> {
   if (!options.apiKey) return null
+  clearLastProviderError()
 
   const history = (context.history ?? []).slice(-8).map((turn) => ({
     role: (turn.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',

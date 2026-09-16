@@ -24,9 +24,10 @@
 - Autonomous re-verify (2026-09-07): `verify:phase1` → `PHASE1_VERIFY_OK` (Live AI); `test:e2e` → `VERIFY_ALL_OK`; `npm test` 50; `npm run build` OK.
 - Perf / TiviMate / playlist (2026-09-16): removed legacy 500-channel persist cap; Live/Guide virtualized; OK opens Live side rail; `verify:perf-playlist`.
 - Channel surfing (2026-09-16): zap OSD + debounced tune, number-pad LCN, recents/favorites hop strip, stable video canvas; `verify:channel-surfing`.
+- BYOK AI (2026-09-16): Settings presets (OpenAI/Anthropic/Gemini/Groq/OpenRouter/custom) + on-device key; direct WebView provider calls for APK; Mock when empty; `docs/AI_BYOK.md`.
 
 ### Still needs user credentials (not finishable in-repo)
 
 - Real Xtream ingest + archive catch-up: Settings panel URL + username + password with `tv_archive` enabled
 - Production RLS / Auth: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` + Auth users, then drop anon policies per `supabase/RLS.md`
-- Live LLM: `OPENAI_API_KEY` already working in this environment (optional `OPENAI_BASE_URL` / `OPENAI_MODEL`)
+- Live LLM: Settings → Assistant AI (BYOK) preferred for Fire Stick; optional server `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` for `npm run dev`

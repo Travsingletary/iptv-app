@@ -11,6 +11,19 @@ import {
 } from '../lib/supabaseAuth'
 import { probeAiModeStatus, type AiModeStatus } from '../lib/aiMode'
 import {
+  AI_PROVIDER_PRESETS,
+  clearAiByokKey,
+  clearAiByokSettings,
+  getProviderPreset,
+  loadAiByokSettings,
+  maskApiKey,
+  resolveByokEndpoint,
+  saveAiByokSettings,
+  type AiByokSettings,
+  type AiProviderId,
+} from '../lib/aiByok'
+import { probeProviderConnection } from '../lib/providerAdapter'
+import {
   isWebsiteAccountUrl,
   normalizePortalBase,
   parsePanelOrPlaylistUrl,
@@ -162,21 +175,92 @@ function AuthSection() {
 
 function AiModeSection() {
   const [status, setStatus] = useState<AiModeStatus | null>(null)
+  const [settings, setSettings] = useState<AiByokSettings>(() => loadAiByokSettings())
+  const [keyDraft, setKeyDraft] = useState('')
+  const [editingKey, setEditingKey] = useState(false)
+  const [probeMsg, setProbeMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const refreshStatus = () => {
+    void probeAiModeStatus().then(setStatus)
+  }
 
   useEffect(() => {
-    void probeAiModeStatus().then(setStatus)
+    refreshStatus()
   }, [])
 
+  const preset = getProviderPreset(settings.provider)
+  const keySaved = Boolean(settings.apiKey.trim())
+  const showCustomBase = settings.provider === 'custom' || Boolean(settings.baseUrl)
+
+  const persist = (patch: Partial<AiByokSettings>) => {
+    const next = saveAiByokSettings(patch)
+    setSettings(next)
+    refreshStatus()
+    return next
+  }
+
+  const onSaveKey = () => {
+    const trimmed = keyDraft.trim()
+    if (!trimmed) return
+    persist({ apiKey: trimmed })
+    setKeyDraft('')
+    setEditingKey(false)
+    setProbeMsg('API key saved on this device.')
+  }
+
+  const onClearKey = () => {
+    const next = clearAiByokKey()
+    setSettings(next)
+    setKeyDraft('')
+    setEditingKey(false)
+    setProbeMsg('API key cleared — Mock AI active.')
+    refreshStatus()
+  }
+
+  const onClearAll = () => {
+    const next = clearAiByokSettings()
+    setSettings(next)
+    setKeyDraft('')
+    setEditingKey(false)
+    setProbeMsg('AI settings reset.')
+    refreshStatus()
+  }
+
+  const onTest = async () => {
+    setBusy(true)
+    setProbeMsg(null)
+    try {
+      const current = loadAiByokSettings()
+      const endpoint = resolveByokEndpoint(current)
+      if (!endpoint) {
+        setProbeMsg('Add an API key (and base URL for Custom) before testing.')
+        return
+      }
+      const result = await probeProviderConnection({
+        apiKey: endpoint.apiKey,
+        provider: endpoint.provider,
+        baseUrl: endpoint.transportBaseUrl,
+        model: endpoint.model,
+      })
+      setProbeMsg(result.ok ? `Live OK — ${result.detail}` : `Probe failed — ${result.detail}`)
+      refreshStatus()
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <section className="glass-panel space-y-3 rounded-3xl p-5 md:p-6">
+    <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6" data-testid="ai-byok-section">
       <div>
         <h2 className="font-display text-lg font-semibold">Assistant AI</h2>
         <p className="mt-1 text-sm text-mist-300">
-          Mock AI is fully featured without keys. Live AI needs{' '}
-          <span className="font-mono text-xs">OPENAI_API_KEY</span> on the server (or{' '}
-          <span className="font-mono text-xs">VITE_OPENAI_API_KEY</span> for static hosting).
+          Paste your own API key from any provider. Keys stay in this device&apos;s local storage
+          (Capacitor WebView / browser) — never committed to git. Without a key the assistant stays
+          honest <span className="text-sand-100">Mock AI</span>.
         </p>
       </div>
+
       <div
         data-testid="ai-mode-indicator"
         className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-ink-850/80 px-4 py-3"
@@ -190,8 +274,201 @@ function AiModeSection() {
         >
           {status?.label ?? 'Checking…'}
         </span>
-        <p className="text-sm text-mist-300">{status?.detail ?? 'Probing assistant API…'}</p>
+        <p className="text-sm text-mist-300" data-testid="ai-mode-detail">
+          {status?.detail ?? 'Probing…'}
+        </p>
       </div>
+
+      <label className="block text-sm">
+        Provider
+        <select
+          value={settings.provider}
+          onChange={(e) => {
+            const provider = e.target.value as AiProviderId
+            const nextPreset = getProviderPreset(provider)
+            persist({
+              provider,
+              // Clear custom base when switching away from custom unless user already overrode.
+              baseUrl: provider === 'custom' ? settings.baseUrl : '',
+              model: settings.model || nextPreset.defaultModel,
+            })
+            setProbeMsg(null)
+          }}
+          className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2.5 outline-none focus:border-ember-400/50"
+          data-tv-focus
+          data-testid="ai-provider-select"
+          aria-label="AI provider"
+        >
+          {AI_PROVIDER_PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="text-xs text-mist-400" data-testid="ai-provider-hint">
+        {preset.hint}
+        {preset.corsRisk === 'high' ? ' High CORS risk in browser/APK.' : ''}
+      </p>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <label className="block min-w-[12rem] flex-1 text-sm">
+            API key
+            {editingKey || !keySaved ? (
+              <input
+                type="password"
+                autoComplete="off"
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+                placeholder="sk-… or provider key"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2.5 font-mono text-sm outline-none focus:border-ember-400/50"
+                data-tv-focus
+                data-testid="ai-api-key-input"
+                aria-label="AI API key"
+              />
+            ) : (
+              <input
+                type="text"
+                readOnly
+                value={maskApiKey(settings.apiKey)}
+                className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850/80 px-3 py-2.5 font-mono text-sm text-mist-200"
+                data-testid="ai-api-key-masked"
+                aria-label="Masked AI API key"
+              />
+            )}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {editingKey || !keySaved ? (
+              <button
+                type="button"
+                disabled={!keyDraft.trim()}
+                onClick={onSaveKey}
+                className="rounded-full bg-sand-50 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-40"
+                data-tv-focus
+                data-testid="ai-save-key"
+              >
+                Save key
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingKey(true)
+                  setKeyDraft('')
+                }}
+                className="rounded-full border border-white/15 px-4 py-2 text-sm"
+                data-tv-focus
+                data-testid="ai-replace-key"
+              >
+                Replace
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={!keySaved}
+              onClick={onClearKey}
+              className="rounded-full border border-white/15 px-4 py-2 text-sm text-red-200 disabled:opacity-40"
+              data-tv-focus
+              data-testid="ai-clear-key"
+            >
+              Clear key
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-mist-400">
+          Warning: the key is stored in localStorage on this device. Anyone with device access can
+          read it. Do not use production billing keys on shared Fire Sticks.
+        </p>
+      </div>
+
+      <label className="block text-sm">
+        Model override (optional)
+        <input
+          value={settings.model}
+          onChange={(e) => persist({ model: e.target.value })}
+          placeholder={preset.defaultModel}
+          className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 outline-none focus:border-ember-400/50"
+          data-tv-focus
+          data-testid="ai-model-input"
+          aria-label="AI model override"
+        />
+      </label>
+
+      {(showCustomBase || settings.provider === 'custom') && (
+        <label className="block text-sm">
+          Base URL {settings.provider === 'custom' ? '(required)' : '(optional override)'}
+          <input
+            value={settings.baseUrl}
+            onChange={(e) => persist({ baseUrl: e.target.value })}
+            placeholder={preset.defaultBaseUrl || 'https://host/v1'}
+            className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 font-mono text-xs outline-none focus:border-ember-400/50"
+            data-tv-focus
+            data-testid="ai-base-url-input"
+            aria-label="AI base URL"
+          />
+        </label>
+      )}
+
+      {settings.provider !== 'custom' && !settings.baseUrl && (
+        <button
+          type="button"
+          className="text-xs text-mist-300 underline decoration-white/20 hover:text-sand-100"
+          onClick={() => persist({ baseUrl: preset.defaultBaseUrl })}
+          data-tv-focus
+        >
+          Override base URL…
+        </button>
+      )}
+
+      <label className="block text-sm">
+        API proxy URL (optional, OpenAI-compatible relay)
+        <input
+          value={settings.proxyUrl}
+          onChange={(e) => persist({ proxyUrl: e.target.value })}
+          placeholder="https://your-relay.example.com/v1"
+          className="mt-1 w-full rounded-xl border border-white/10 bg-ink-850 px-3 py-2 font-mono text-xs outline-none focus:border-ember-400/50"
+          data-tv-focus
+          data-testid="ai-proxy-url-input"
+          aria-label="AI API proxy URL"
+        />
+      </label>
+      <p className="text-xs text-mist-400">
+        When set, SteadyStream calls <span className="font-mono">proxy/chat/completions</span> with
+        your key — use this if OpenAI/Anthropic block browser CORS. OpenRouter and Groq usually work
+        direct from the Fire Stick WebView.
+      </p>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy || !keySaved}
+          onClick={() => void onTest()}
+          className="rounded-full border border-ember-400/40 bg-ember-500/10 px-4 py-2 text-sm text-ember-200 disabled:opacity-40"
+          data-tv-focus
+          data-testid="ai-test-connection"
+        >
+          {busy ? 'Testing…' : 'Test connection'}
+        </button>
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="rounded-full border border-white/15 px-4 py-2 text-sm"
+          data-tv-focus
+          data-testid="ai-reset-settings"
+        >
+          Reset AI settings
+        </button>
+      </div>
+
+      {probeMsg && (
+        <p
+          data-testid="ai-probe-message"
+          className="rounded-xl border border-ember-400/30 bg-ember-500/10 px-3 py-2 text-sm text-sand-100"
+        >
+          {probeMsg}
+        </p>
+      )}
     </section>
   )
 }
