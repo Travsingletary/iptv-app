@@ -90,6 +90,15 @@ const injectMs = await page.evaluate(async (count) => {
 }, CATALOG)
 
 await page.reload({ waitUntil: 'networkidle' })
+await page.waitForSelector('[data-testid="remote-toggle"]', { timeout: 20_000 })
+
+// partialize does not persist view — open Live rail explicitly after rehydrate.
+await page.evaluate(() => {
+  const live = [...document.querySelectorAll('aside button')].find((b) =>
+    (b.textContent || '').includes('Live TV'),
+  )
+  live?.click()
+})
 await page.waitForSelector('[data-testid="live-channel-list"]', { timeout: 20_000 })
 
 const listMetrics = await page.evaluate(() => {
@@ -109,6 +118,13 @@ const listMetrics = await page.evaluate(() => {
 
 // Persist round-trip: ensure >500 channels survive reload
 await page.reload({ waitUntil: 'networkidle' })
+await page.waitForSelector('[data-testid="remote-toggle"]', { timeout: 20_000 })
+await page.evaluate(() => {
+  const live = [...document.querySelectorAll('aside button')].find((b) =>
+    (b.textContent || '').includes('Live TV'),
+  )
+  live?.click()
+})
 await page.waitForSelector('[data-testid="live-channel-count"]', { timeout: 20_000 })
 const afterReload = await page.evaluate(() => {
   const countEl = document.querySelector('[data-testid="live-channel-count"]')
