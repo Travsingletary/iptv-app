@@ -15,6 +15,11 @@ export interface Channel {
   kind: ContentKind
   tvgId?: string
   tvgName?: string
+  /**
+   * Logical channel number (LCN) from Xtream `num` / M3U `tvg-chno`.
+   * When missing, UI falls back to 1-based live list index.
+   */
+  number?: number
   favorite?: boolean
   catchup?: boolean
   quality?: string
@@ -78,6 +83,17 @@ export interface CatchupState {
   url: string
   /** How catch-up was resolved. */
   mode?: 'xtream' | 'demo_stub' | 'unsupported'
+}
+
+/** Ephemeral channel-surfing HUD (not persisted). */
+export interface SurfingState {
+  /** Channel highlighted in OSD / Live rail while zap debounce settles. */
+  previewChannelId: string | null
+  /** Show zap banner (number, name, now/next). */
+  osdVisible: boolean
+  /** Digits typed for LCN / index entry. */
+  digitBuffer: string
+  digitEntryActive: boolean
 }
 
 export interface PlayerState {

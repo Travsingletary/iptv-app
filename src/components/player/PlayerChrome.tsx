@@ -10,9 +10,10 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { nowPlaying, progressPct } from '../../lib/epg'
 import { formatTimeRange } from '../../lib/time'
+import { zapByDirection } from '../../lib/surfingControls'
 import { useIptvStore } from '../../store/useIptvStore'
 
 interface PlayerChromeProps {
@@ -34,9 +35,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
   const clearCatchup = useIptvStore((s) => s.clearCatchup)
   const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
 
-  const live = useMemo(() => channels.filter((c) => c.kind === 'live'), [channels])
   const channel = channels.find((c) => c.id === player.channelId)
-  const idx = live.findIndex((c) => c.id === player.channelId)
   const program = channel ? nowPlaying(epg, channel.tvgId || channel.id) : undefined
 
   useEffect(() => {
@@ -61,9 +60,7 @@ export function PlayerChrome({ onOpenGuide }: PlayerChromeProps) {
   if (!channel) return null
 
   const zap = (dir: -1 | 1) => {
-    if (idx < 0 || !live.length) return
-    const next = live[(idx + dir + live.length) % live.length]
-    playChannel(next.id)
+    zapByDirection(dir)
   }
 
   return (

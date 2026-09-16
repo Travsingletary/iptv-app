@@ -21,6 +21,7 @@
     "verify:phase6": "node e2e/verify-phase6.mjs",
     "verify:finish": "node e2e/verify-finish.mjs",
     "verify:perf-playlist": "node e2e/verify-perf-tivimate-playlist.mjs",
+    "verify:channel-surfing": "node e2e/verify-channel-surfing.mjs",
     "test:e2e": "node e2e/verify-all.mjs",
     "check:demo-streams": "node e2e/check-demo-streams.mjs",
     "android:sync": "npm run build && npx cap sync android",

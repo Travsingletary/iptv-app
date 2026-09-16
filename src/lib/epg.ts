@@ -68,6 +68,17 @@ export function nowPlaying(
   )
 }
 
+/** Program that starts at or after `after` (typically current program end). */
+export function nextProgram(
+  programs: EpgProgram[],
+  channelKey: string,
+  after = Date.now(),
+): EpgProgram | undefined {
+  return programsForChannel(programs, channelKey, after, 8 * 60 * 60_000).find(
+    (p) => p.start >= after,
+  )
+}
+
 export function progressPct(program: EpgProgram, now = Date.now()): number {
   const span = program.end - program.start
   if (span <= 0) return 0

@@ -41,6 +41,8 @@ export function parseM3U(raw: string): Channel[] {
       const logo = attr(line, 'tvg-logo') || attr(line, 'logo')
       const tvgId = attr(line, 'tvg-id')
       const tvgName = attr(line, 'tvg-name')
+      const chnoRaw = attr(line, 'tvg-chno') || attr(line, 'channel-number')
+      const chno = chnoRaw != null ? Number(chnoRaw) : NaN
       const kind = inferKind(group, name)
 
       meta = {
@@ -49,6 +51,7 @@ export function parseM3U(raw: string): Channel[] {
         logo,
         tvgId,
         tvgName,
+        number: Number.isFinite(chno) && chno > 0 ? Math.floor(chno) : undefined,
         kind,
         catchup: /catchup/i.test(line),
       }
@@ -72,6 +75,7 @@ export function parseM3U(raw: string): Channel[] {
         logo: meta.logo,
         tvgId: meta.tvgId,
         tvgName: meta.tvgName,
+        number: meta.number,
         catchup: meta.catchup,
       })
       meta = null

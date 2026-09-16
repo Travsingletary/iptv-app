@@ -9,6 +9,8 @@ import { ReminderToasts } from '../assistant/ReminderToasts'
 import { AutomationToasts } from '../assistant/AutomationToasts'
 import { VideoPlayer } from '../player/VideoPlayer'
 import { PlayerChrome } from '../player/PlayerChrome'
+import { ZapOsd } from '../player/ZapOsd'
+import { ChannelNumberOverlay } from '../player/ChannelNumberOverlay'
 import { MultiViewPage } from '../../pages/MultiViewPage'
 
 /**
@@ -52,6 +54,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {showVideoCanvas && (
         <div
           className="absolute inset-0 z-0 bg-black"
+          data-testid="video-canvas"
           onMouseMove={() => setPlayer({ overlayVisible: true })}
           onClick={() => {
             if (!menuOpen) setPlayer({ overlayVisible: true })
@@ -59,6 +62,8 @@ export function Shell({ children }: { children: ReactNode }) {
         >
           <VideoPlayer />
           <PlayerChrome onOpenGuide={() => setView('guide')} />
+          <ZapOsd />
+          <ChannelNumberOverlay />
         </div>
       )}
 

@@ -83,13 +83,16 @@ describe('resolveRemoteAction', () => {
     ).toBe('toggle-menu')
   })
 
-  it('Up/Down zap when immersive; focus-nav when overlay', () => {
+  it('Up/Down zap when immersive or chrome-only; focus-nav when overlay', () => {
     expect(
       resolveRemoteAction({ key: 'ArrowUp', code: 'ArrowUp', keyCode: 38 }, immersive),
     ).toBe('channel-zap-up')
     expect(
       resolveRemoteAction({ key: 'ArrowDown', code: 'ArrowDown', keyCode: 40 }, immersive),
     ).toBe('channel-zap-down')
+    expect(
+      resolveRemoteAction({ key: 'ArrowUp', code: 'ArrowUp', keyCode: 38 }, chromeOnly),
+    ).toBe('channel-zap-up')
     expect(
       resolveRemoteAction({ key: 'ArrowUp', code: 'ArrowUp', keyCode: 38 }, overlay),
     ).toBe('focus-nav')

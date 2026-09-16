@@ -5,6 +5,7 @@ import {
   useIptvStore,
 } from '../store/useIptvStore'
 import { nowPlaying } from '../lib/epg'
+import { channelDisplayNumber } from '../lib/channelSurfing'
 import {
   FAVORITES_CHIP,
   channelCategory,
@@ -12,6 +13,7 @@ import {
   rankChannelSearch,
 } from '../lib/categories'
 import { computeVirtualWindow } from '../lib/virtualWindow'
+import { SurfingHopStrip } from '../components/player/SurfingHopStrip'
 import type { Channel } from '../types/iptv'
 import type { EpgProgram } from '../types/iptv'
 
@@ -21,10 +23,12 @@ const ChannelRow = memo(function ChannelRow({
   ch,
   on,
   program,
+  displayNumber,
 }: {
   ch: Channel
   on: boolean
   program?: EpgProgram
+  displayNumber: number
 }) {
   const playChannel = useIptvStore((s) => s.playChannel)
   const bucket = channelCategory(ch)
@@ -41,6 +45,9 @@ const ChannelRow = memo(function ChannelRow({
         on ? 'bg-ember-500/15 ring-1 ring-ember-400/40' : 'hover:bg-white/5'
       }`}
     >
+      <span className="w-8 shrink-0 text-right font-mono text-[11px] tabular-nums text-mist-400">
+        {displayNumber}
+      </span>
       {ch.logo ? (
         <img src={ch.logo} alt="" className="h-10 w-10 rounded-lg object-cover" loading="lazy" />
       ) : (
@@ -77,6 +84,7 @@ export function LivePage() {
   const setSearch = useIptvStore((s) => s.setSearch)
   const favorites = useIptvStore((s) => s.favorites)
   const recentIds = useIptvStore((s) => s.recentIds)
+  const surfingPreviewId = useIptvStore((s) => s.surfing.previewChannelId)
 
   const [draftSearch, setDraftSearch] = useState(search)
   const listRef = useRef<HTMLDivElement>(null)
@@ -133,10 +141,12 @@ export function LivePage() {
     return () => ro.disconnect()
   }, [])
 
-  // Keep the tuned channel in the virtual window when the Live rail opens.
+  const onAirId = surfingPreviewId || playerChannelId
+
+  // Keep the tuned / preview channel in the virtual window when the Live rail opens.
   useEffect(() => {
-    if (!playerChannelId || !listRef.current) return
-    const idx = filtered.findIndex((c) => c.id === playerChannelId)
+    if (!onAirId || !listRef.current) return
+    const idx = filtered.findIndex((c) => c.id === onAirId)
     if (idx < 0) return
     const top = idx * ROW_HEIGHT
     const el = listRef.current
@@ -144,7 +154,7 @@ export function LivePage() {
       el.scrollTop = Math.max(0, top - el.clientHeight / 3)
       setScrollTop(el.scrollTop)
     }
-  }, [playerChannelId, filtered])
+  }, [onAirId, filtered])
 
   const windowed = useMemo(
     () =>
@@ -248,6 +258,8 @@ export function LivePage() {
         </div>
       </div>
 
+      <SurfingHopStrip variant="rail" />
+
       <div
         ref={listRef}
         onScroll={onScroll}
@@ -258,14 +270,24 @@ export function LivePage() {
       >
         <div style={{ height: windowed.totalHeight, position: 'relative' }}>
           <div style={{ transform: `translateY(${windowed.offsetY}px)` }}>
-            {visibleRows.map((ch) => (
-              <ChannelRow
-                key={ch.id}
-                ch={ch}
-                on={playerChannelId === ch.id}
-                program={nowPlaying(epg, ch.tvgId || ch.id)}
-              />
-            ))}
+            {visibleRows.map((ch, i) => {
+              const absoluteIndex = windowed.start + i
+              // Prefer LCN; when filtering, still show provider number or absolute filtered index.
+              const liveIndex = live.findIndex((c) => c.id === ch.id)
+              const displayNumber = channelDisplayNumber(
+                ch,
+                liveIndex >= 0 ? liveIndex : absoluteIndex,
+              )
+              return (
+                <ChannelRow
+                  key={ch.id}
+                  ch={ch}
+                  on={onAirId === ch.id}
+                  displayNumber={displayNumber}
+                  program={nowPlaying(epg, ch.tvgId || ch.id)}
+                />
+              )
+            })}
           </div>
         </div>
       </div>
