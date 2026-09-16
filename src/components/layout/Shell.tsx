@@ -13,7 +13,7 @@ import { MultiViewPage } from '../../pages/MultiViewPage'
 
 /**
  * TV-first shell: live/VOD video is the always-on canvas.
- * Home/Guide/Live list/Settings/etc. animate in as overlays over dimmed video.
+ * Home/Guide/Settings animate in as overlays; Live is a fast side rail over video (TiviMate-like).
  * Remote FAB (and keyboard) toggles the overlay menu.
  */
 export function Shell({ children }: { children: ReactNode }) {
@@ -40,10 +40,11 @@ export function Shell({ children }: { children: ReactNode }) {
     if (live) playChannel(live.id)
   }, [player.channelId, channels, playChannel, isMultiView])
 
-  const reduce = prefs.reduceMotion
+  const reduce = prefs.reduceMotion || liveRail
   const panelTransition = reduce
-    ? { duration: 0.01 }
+    ? { duration: liveRail ? 0.12 : 0.01 }
     : { type: 'spring' as const, stiffness: 380, damping: 34, mass: 0.85 }
+  const liveTransition = { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const }
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-ink-950">
@@ -95,19 +96,20 @@ export function Shell({ children }: { children: ReactNode }) {
             className={`absolute inset-0 z-30 flex min-h-0 ${
               liveRail || isMultiView ? 'pointer-events-none' : ''
             }`}
-            initial={reduce ? false : { opacity: 0 }}
+            initial={reduce || liveRail ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={reduce ? undefined : { opacity: 0 }}
-            transition={{ duration: 0.22 }}
+            exit={reduce || liveRail ? undefined : { opacity: 0 }}
+            transition={liveRail ? liveTransition : { duration: 0.22 }}
           >
+            {/* Icon rail stays for navigation; Live keeps video visible beside it. */}
             <motion.div
               className="pointer-events-auto relative z-30 h-full shrink-0"
-              initial={reduce ? false : { x: -72, opacity: 0 }}
+              initial={reduce || liveRail ? false : { x: -72, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={reduce ? undefined : { x: -56, opacity: 0 }}
-              transition={panelTransition}
+              exit={reduce || liveRail ? undefined : { x: -56, opacity: 0 }}
+              transition={liveRail ? liveTransition : panelTransition}
             >
-              <SideNav overlay />
+              <SideNav overlay compact={liveRail} />
             </motion.div>
 
             {!isMultiView && (
@@ -115,8 +117,9 @@ export function Shell({ children }: { children: ReactNode }) {
                 className={`pointer-events-auto relative min-w-0 ${
                   liveRail ? 'w-full max-w-md shrink-0' : 'flex-1 overflow-hidden'
                 }`}
+                data-testid={liveRail ? 'live-side-rail' : 'full-overlay-panel'}
                 initial={
-                  reduce
+                  reduce || liveRail
                     ? false
                     : liveRail
                       ? { opacity: 0, x: -24 }
@@ -128,35 +131,39 @@ export function Shell({ children }: { children: ReactNode }) {
                     : { opacity: 1, y: 0, scale: 1 }
                 }
                 exit={
-                  reduce
+                  reduce || liveRail
                     ? undefined
                     : liveRail
                       ? { opacity: 0, x: -16 }
                       : { opacity: 0, y: 12, scale: 0.985 }
                 }
-                transition={panelTransition}
+                transition={liveRail ? liveTransition : panelTransition}
               >
                 <div
                   className={`h-full min-h-0 ${
                     liveRail
-                      ? 'border-r border-white/10 bg-ink-950/92 shadow-[12px_0_40px_rgba(0,0,0,0.5)] backdrop-blur-xl'
+                      ? 'border-r border-white/10 bg-ink-950/92 shadow-[12px_0_40px_rgba(0,0,0,0.5)] backdrop-blur-md'
                       : showVideoCanvas
                         ? 'bg-ink-900/80 backdrop-blur-xl md:m-3 md:rounded-2xl md:ring-1 md:ring-white/10'
                         : 'bg-hero-wash bg-grain'
                   }`}
                 >
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={view}
-                      className="h-full overflow-y-auto"
-                      initial={reduce ? false : { opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={reduce ? undefined : { opacity: 0, y: -8 }}
-                      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      {children}
-                    </motion.div>
-                  </AnimatePresence>
+                  {liveRail ? (
+                    <div className="h-full overflow-hidden">{children}</div>
+                  ) : (
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={view}
+                        className="h-full overflow-y-auto"
+                        initial={reduce ? false : { opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reduce ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        {children}
+                      </motion.div>
+                    </AnimatePresence>
+                  )}
                 </div>
               </motion.main>
             )}

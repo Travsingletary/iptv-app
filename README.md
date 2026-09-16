@@ -54,7 +54,7 @@ npm run build
 npm run dev                  # Vite + /api/assistant middleware
 ```
 
-Accessibility: Settings → **Large text** / **High contrast** (plus Reduce motion). Fire Stick D-pad map: `docs/FIRE_STICK_REMOTE.md`. Playback containers (HLS / TS / MP4 / MKV…): `docs/PLAYBACK_FORMATS.md`.
+Accessibility: Settings → **Large text** / **High contrast** (plus Reduce motion). Fire Stick D-pad map: `docs/FIRE_STICK_REMOTE.md`. Playlist completeness (Live vs lazy VOD): `docs/PLAYLIST.md`. Playback containers (HLS / TS / MP4 / MKV…): `docs/PLAYBACK_FORMATS.md`.
 
 ## Share with friends (today)
 

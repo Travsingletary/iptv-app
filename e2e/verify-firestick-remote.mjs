@@ -91,6 +91,7 @@ await page.evaluate(() => {
 })
 await fire('Enter')
 const afterOk = await page.locator('[data-testid="remote-back"]').count()
+const liveRailAfterOk = await page.locator('[data-testid="live-side-rail"]').count()
 await page.screenshot({ path: path.join(outDir, 'firestick_ok_opens_menu.png') })
 
 await page.evaluate(() => {
@@ -126,10 +127,17 @@ const dest = path.join(outDir, 'firestick_dpad_ok_back_demo.webm')
 fs.renameSync(videoPath, dest)
 
 const result = {
-  ok: afterBack === 0 && afterOk === 1 && afterR === 1 && seq.includes('Live TV') && chip.ring,
+  ok:
+    afterBack === 0 &&
+    afterOk === 1 &&
+    liveRailAfterOk === 1 &&
+    afterR === 1 &&
+    seq.includes('Live TV') &&
+    chip.ring,
   seq,
   afterBack,
   afterOk,
+  liveRailAfterOk,
   afterR,
   chip,
   video: dest,

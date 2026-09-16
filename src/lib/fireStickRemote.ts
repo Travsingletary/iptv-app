@@ -6,6 +6,8 @@
 export type RemoteAction =
   | 'toggle-menu'
   | 'open-menu'
+  | /** TiviMate-style: OK while watching opens the Live channel side panel. */
+    'open-live-browser'
   | 'dismiss-menu'
   | 'hide-chrome'
   | 'noop-immersive'
@@ -82,9 +84,9 @@ export function resolveRemoteAction(
 
   if (isSelectKey(event)) {
     if (!state.menuOpen) {
-      // Immersive / chrome-only: OK opens the Remote menu unless a control is focused.
+      // Immersive / chrome-only: OK opens Live channel browser (TiviMate) unless a control is focused.
       if (options.hasFocusedControl) return 'select-focused'
-      return 'open-menu'
+      return 'open-live-browser'
     }
     // Overlay open: let the focused control activate (native Enter).
     return 'select-focused'

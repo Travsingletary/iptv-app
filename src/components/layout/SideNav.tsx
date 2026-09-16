@@ -23,11 +23,19 @@ const NAV: { id: AppView; label: string; icon: typeof Tv }[] = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
-export function SideNav({ overlay = false }: { overlay?: boolean }) {
+export function SideNav({
+  overlay = false,
+  compact = false,
+}: {
+  overlay?: boolean
+  /** Live side-rail mode: icon-only so more of the TV stays visible. */
+  compact?: boolean
+}) {
   const view = useIptvStore((s) => s.view)
   const setView = useIptvStore((s) => s.setView)
   const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
   const prefs = useIptvStore((s) => s.prefs)
+  const reduceMotion = useIptvStore((s) => s.prefs.reduceMotion)
   const [clock, setClock] = useState(formatClock())
 
   useEffect(() => {
@@ -44,13 +52,14 @@ export function SideNav({ overlay = false }: { overlay?: boolean }) {
     setView(id)
   }
 
+  const wide = !compact
+
   return (
     <aside
-      className={`relative z-30 flex h-full w-[4.75rem] flex-col border-r border-white/8 backdrop-blur-xl md:w-56 ${
-        overlay
-          ? 'bg-ink-950/90 shadow-[8px_0_40px_rgba(0,0,0,0.45)]'
-          : 'bg-ink-900/90'
-      }`}
+      data-testid={compact ? 'side-nav-compact' : 'side-nav'}
+      className={`relative z-30 flex h-full flex-col border-r border-white/8 backdrop-blur-xl ${
+        wide ? 'w-[4.75rem] md:w-56' : 'w-[4.75rem]'
+      } ${overlay ? 'bg-ink-950/90 shadow-[8px_0_40px_rgba(0,0,0,0.45)]' : 'bg-ink-900/90'}`}
     >
       <div className="border-b border-white/8 px-3 py-5 md:px-5">
         <div className="flex items-center gap-3">
@@ -61,14 +70,16 @@ export function SideNav({ overlay = false }: { overlay?: boolean }) {
             width={40}
             height={40}
           />
-          <div className="hidden md:block">
-            <p className="font-display text-lg font-bold leading-none tracking-tight text-ember-400">
-              SteadyStream
-            </p>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
-              Premium IPTV
-            </p>
-          </div>
+          {wide && (
+            <div className="hidden md:block">
+              <p className="font-display text-lg font-bold leading-none tracking-tight text-ember-400">
+                SteadyStream
+              </p>
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
+                Premium IPTV
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -88,33 +99,34 @@ export function SideNav({ overlay = false }: { overlay?: boolean }) {
                   : 'text-mist-300 hover:bg-white/5 hover:text-sand-50'
               }`}
             >
-              {active && (
+              {active && !reduceMotion && !compact && (
                 <motion.span
                   layoutId="nav-pill"
                   className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30"
                   transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 />
               )}
+              {active && (reduceMotion || compact) && (
+                <span className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30" />
+              )}
               <Icon
                 size={20}
                 className={`relative z-10 shrink-0 ${active ? 'text-ember-400' : ''}`}
               />
-              <span className="relative z-10 hidden text-sm font-medium md:inline">
-                {item.label}
-              </span>
+              {wide && (
+                <span className="relative z-10 hidden text-sm font-medium md:inline">
+                  {item.label}
+                </span>
+              )}
             </button>
           )
         })}
       </nav>
 
-      {prefs.showClock && (
+      {prefs.showClock && wide && (
         <div className="hidden border-t border-white/8 px-5 py-4 md:block">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-mist-400">
-            Local
-          </p>
-          <p className="mt-1 font-display text-2xl font-semibold tabular-nums">
-            {clock}
-          </p>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-mist-400">Local</p>
+          <p className="mt-1 font-display text-2xl font-semibold tabular-nums">{clock}</p>
         </div>
       )}
     </aside>

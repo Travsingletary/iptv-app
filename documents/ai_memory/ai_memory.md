@@ -22,6 +22,7 @@
 - Phase 6 verified: Supabase RLS notes/migration, CI e2e suite (`test:e2e`), README phase map + env docs (`e2e/verify-phase6.mjs`).
 - Finish pass verified: Supabase Auth Settings UI (demo-safe), AI Mock/Live indicator, Xtream/catch-up harden, multi-view single audible pane (`e2e/verify-finish.mjs`).
 - Autonomous re-verify (2026-09-07): `verify:phase1` → `PHASE1_VERIFY_OK` (Live AI); `test:e2e` → `VERIFY_ALL_OK`; `npm test` 50; `npm run build` OK.
+- Perf / TiviMate / playlist (2026-09-16): removed legacy 500-channel persist cap; Live/Guide virtualized; OK opens Live side rail; `verify:perf-playlist`.
 
 ### Still needs user credentials (not finishable in-repo)
 
