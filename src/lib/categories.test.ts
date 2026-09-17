@@ -3,9 +3,12 @@ import type { Channel } from '../types/iptv.js'
 import {
   FAVORITES_CHIP,
   channelCategory,
+  chipTestId,
   detectCategoryMention,
   normalizeCategory,
+  rankBrowseChips,
   rankCategoryChips,
+  rankProviderGroupChips,
   rankChannelSearch,
 } from './categories.js'
 
@@ -67,6 +70,40 @@ describe('rankCategoryChips', () => {
   it('omits Favorites when none favorited', () => {
     const chips = rankCategoryChips({ channels, favorites: [], now: new Date('2026-09-09T08:00:00') })
     expect(chips.every((c) => c.id !== FAVORITES_CHIP)).toBe(true)
+  })
+})
+
+describe('rankProviderGroupChips', () => {
+  const channels = [
+    ch({ id: '1', name: 'Arena', group: 'US|SPORTS|ESPN' }),
+    ch({ id: '2', name: 'Pulse', group: 'UK - NEWS' }),
+    ch({ id: '3', name: 'Pulse2', group: 'UK - NEWS' }),
+    ch({ id: '4', name: 'Toon', group: 'Kids Pack' }),
+    ch({ id: '5', name: 'Fav', group: 'US|SPORTS|ESPN' }),
+  ]
+
+  it('keeps real provider group titles sorted by count', () => {
+    const chips = rankProviderGroupChips({
+      channels,
+      favorites: ['5'],
+    })
+    expect(chips[0]?.id).toBe(FAVORITES_CHIP)
+    const labels = chips.slice(1).map((c) => c.label)
+    expect(labels.slice(0, 2).sort()).toEqual(['UK - NEWS', 'US|SPORTS|ESPN'].sort())
+    expect(labels).toContain('Kids Pack')
+    expect(labels).not.toContain('Sports')
+  })
+
+  it('rankBrowseChips defaults provider mode to folders', () => {
+    const provider = rankBrowseChips('provider', { channels })
+    const smart = rankBrowseChips('smart', { channels })
+    expect(provider.some((c) => c.id === 'US|SPORTS|ESPN')).toBe(true)
+    expect(smart.some((c) => c.id === 'Sports')).toBe(true)
+  })
+
+  it('chipTestId sanitizes pipes and spaces', () => {
+    expect(chipTestId('US|SPORTS|ESPN')).toBe('us-sports-espn')
+    expect(chipTestId(FAVORITES_CHIP)).toBe('favorites')
   })
 })
 

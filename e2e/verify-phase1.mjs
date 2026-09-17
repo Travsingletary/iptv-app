@@ -52,7 +52,11 @@ try {
   await enterWithDemoPack(page)
   note('onboarding: demo pack')
 
-  // For You Now rail on Home
+  // For You Now rail on Home hub (under Settings — TV-first nav)
+  await page.getByTestId('remote-toggle').click().catch(() => {})
+  await page.getByTestId('nav-settings').click()
+  await page.getByTestId('open-home-page').click()
+  await page.waitForTimeout(600)
   const forYou = page.getByText('For You Now')
   if (!(await forYou.count())) throw new Error('For You Now rail missing on Home')
   note('for you now: visible')

@@ -1,13 +1,24 @@
 /**
  * Fire Stick / lean-back remote key map helpers.
  * Browser simulation: Arrow keys = D-pad, Enter = OK, Escape/Backspace = Back.
+ *
+ * Default map mimics common TiviMate lean-back behavior (not a clone of their UI):
+ * - ↑↓ zap while watching
+ * - ← opens channel list (side rail)
+ * - → previous / recent channel
+ * - OK shows player chrome; OK again (no focus) opens channel list
+ * - Back dismisses overlays, then opens Guide when already immersive
+ * - Menu toggles the overlay shell
  */
 
 export type RemoteAction =
   | 'toggle-menu'
   | 'open-menu'
-  | /** TiviMate-style: OK while watching opens the Live channel side panel. */
+  | /** TiviMate-style: open Live channel side panel over video. */
     'open-live-browser'
+  | 'open-guide'
+  | 'show-chrome'
+  | 'previous-channel'
   | 'dismiss-menu'
   | 'hide-chrome'
   | 'noop-immersive'
@@ -78,30 +89,32 @@ export function resolveRemoteAction(
   if (isBackKey(event)) {
     if (state.menuOpen) return 'dismiss-menu'
     if (state.overlayVisible) return 'hide-chrome'
-    // Already immersive — do not toggle chrome or unload the player.
-    return 'noop-immersive'
+    // TiviMate-like: Back from pure TV opens the Guide overlay.
+    return 'open-guide'
   }
 
   if (isSelectKey(event)) {
     if (!state.menuOpen) {
-      // Immersive / chrome-only: OK opens Live channel browser (TiviMate) unless a control is focused.
       if (options.hasFocusedControl) return 'select-focused'
+      // First OK → player chrome / info; second OK (chrome up, nothing focused) → channel list.
+      if (!state.overlayVisible) return 'show-chrome'
       return 'open-live-browser'
     }
-    // Overlay open: let the focused control activate (native Enter).
     return 'select-focused'
   }
 
   if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-    // Overlay menu owns vertical focus; immersive + chrome still zap (TiviMate-like).
     if (state.menuOpen) return 'focus-nav'
     return event.key === 'ArrowUp' ? 'channel-zap-up' : 'channel-zap-down'
   }
 
   if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-    // Rails / chips / player chrome use spatial focus when overlay or chrome is up.
-    if (state.menuOpen || state.overlayVisible || state.focusMode) return 'focus-nav'
-    return 'ignore'
+    if (state.menuOpen || state.focusMode) return 'focus-nav'
+    // Chrome visible: ←/→ move among chrome controls (TiviMate info panel).
+    if (state.overlayVisible) return 'focus-nav'
+    // Immersive: ← channel list, → previous/recent channel.
+    if (event.key === 'ArrowLeft') return 'open-live-browser'
+    return 'previous-channel'
   }
 
   return 'ignore'

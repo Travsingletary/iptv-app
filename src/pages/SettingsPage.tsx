@@ -659,6 +659,7 @@ export function SettingsPage() {
   const sources = useIptvStore((s) => s.sources)
   const prefs = useIptvStore((s) => s.prefs)
   const setPrefs = useIptvStore((s) => s.setPrefs)
+  const setView = useIptvStore((s) => s.setView)
   const loadDemo = useIptvStore((s) => s.loadDemo)
   const importM3UText = useIptvStore((s) => s.importM3UText)
   const importM3UUrl = useIptvStore((s) => s.importM3UUrl)
@@ -1091,6 +1092,77 @@ export function SettingsPage() {
 
       <section className="glass-panel space-y-4 rounded-3xl p-5 md:p-6">
         <h2 className="font-display text-lg font-semibold">Playback & UI</h2>
+        <label className="flex items-center justify-between gap-4 text-sm" data-testid="category-browse-mode">
+          <span>
+            Live categories
+            <span className="mt-0.5 block text-xs text-mist-400">
+              Provider folders = MegaOTT groups. Smart = News/Sports buckets.
+            </span>
+          </span>
+          <select
+            data-tv-focus
+            data-testid="category-browse-select"
+            className="rounded-lg border border-white/15 bg-ink-850 px-3 py-2 text-sm"
+            value={prefs.categoryBrowseMode ?? 'provider'}
+            onChange={(e) =>
+              setPrefs({
+                categoryBrowseMode: e.target.value === 'smart' ? 'smart' : 'provider',
+              })
+            }
+          >
+            <option value="provider">Provider folders</option>
+            <option value="smart">Smart buckets</option>
+          </select>
+        </label>
+        <label className="flex items-center justify-between gap-4 text-sm">
+          Show Assistant button on TV
+          <input
+            type="checkbox"
+            data-tv-focus
+            data-testid="show-assistant-fab"
+            checked={Boolean(prefs.showAssistantFab)}
+            onChange={(e) => setPrefs({ showAssistantFab: e.target.checked })}
+            className="accent-ember-400"
+          />
+        </label>
+        <button
+          type="button"
+          data-tv-focus
+          data-testid="open-assistant-from-settings"
+          className="rounded-full border border-ember-400/40 bg-ember-500/10 px-4 py-2 text-sm text-ember-200"
+          onClick={() => window.dispatchEvent(new Event('steadystream-open-assistant'))}
+        >
+          Open Assistant
+        </button>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            data-tv-focus
+            data-testid="open-favorites-page"
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-mist-200"
+            onClick={() => setView('favorites')}
+          >
+            Favorites
+          </button>
+          <button
+            type="button"
+            data-tv-focus
+            data-testid="open-home-page"
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-mist-200"
+            onClick={() => setView('home')}
+          >
+            Home hub
+          </button>
+          <button
+            type="button"
+            data-tv-focus
+            data-testid="open-multiview"
+            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-mist-200"
+            onClick={() => useIptvStore.getState().setMultiViewLayout(2)}
+          >
+            Multi-view
+          </button>
+        </div>
         <label className="flex items-center justify-between gap-4 text-sm">
           Show clock in sidebar
           <input

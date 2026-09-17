@@ -185,14 +185,16 @@ const defaultPrefs: UiPrefs = {
   guideHours: 5,
   largeText: false,
   highContrast: false,
+  categoryBrowseMode: 'provider',
+  showAssistantFab: false,
 }
 
 export const useIptvStore = create<IptvState>()(
   persist(
     (set, get) => ({
       onboarded: false,
-      view: 'home',
-      menuOpen: true,
+      view: 'live',
+      menuOpen: false,
       sources: [DEMO_SOURCE],
       activeSourceId: DEMO_SOURCE.id,
       channels: DEMO_CHANNELS,
@@ -226,7 +228,7 @@ export const useIptvStore = create<IptvState>()(
 
       toggleMenu: () => set((s) => ({ menuOpen: !s.menuOpen })),
 
-      completeOnboarding: () => set({ onboarded: true, view: 'home', menuOpen: true }),
+      completeOnboarding: () => set({ onboarded: true, view: 'live', menuOpen: false }),
 
       setSearch: (search) => {
         set({ search })
@@ -508,8 +510,8 @@ export const useIptvStore = create<IptvState>()(
           epg: refreshDemoEpg(),
           // Preserve onboarded so the first-run tour can finish after loading demo.
           onboarded: s.onboarded,
-          view: s.onboarded ? 'home' : s.view,
-          menuOpen: s.onboarded ? true : s.menuOpen,
+          view: s.onboarded ? 'live' : s.view,
+          menuOpen: s.onboarded ? false : s.menuOpen,
         })),
 
       importM3UText: (name, text, epgUrl) => {
@@ -535,7 +537,7 @@ export const useIptvStore = create<IptvState>()(
           vodLoadError: null,
           epg: [],
           onboarded: alreadyOnboarded,
-          view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
+          view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'live' : get().view,
           player: { ...defaultPlayer },
         })
       },
@@ -567,7 +569,7 @@ export const useIptvStore = create<IptvState>()(
           vodLoadError: null,
           epg: [],
           onboarded: alreadyOnboarded,
-          view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
+          view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'live' : get().view,
           player: { ...defaultPlayer },
         })
       },
@@ -590,7 +592,7 @@ export const useIptvStore = create<IptvState>()(
             vodLoadError: null,
             epg: xtreamDemoEpg(),
             onboarded: alreadyOnboarded,
-            view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
+            view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'live' : get().view,
             player: { ...defaultPlayer },
           })
         } else {
@@ -604,7 +606,7 @@ export const useIptvStore = create<IptvState>()(
             vodLoadError: null,
             epg: [],
             onboarded: alreadyOnboarded,
-            view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'home' : get().view,
+            view: stayOnSettings ? 'settings' : alreadyOnboarded ? 'live' : get().view,
             player: { ...defaultPlayer },
           })
         }
@@ -1036,6 +1038,9 @@ export const useIptvStore = create<IptvState>()(
         merged.prefs = {
           ...defaultPrefs,
           ...(saved.prefs ?? {}),
+          categoryBrowseMode:
+            saved.prefs?.categoryBrowseMode === 'smart' ? 'smart' : 'provider',
+          showAssistantFab: Boolean(saved.prefs?.showAssistantFab),
         }
         return merged
       },

@@ -14,6 +14,7 @@ import {
   cancelDigitEntry,
   commitDigitEntry,
   handleChannelDigit,
+  playPreviousChannel,
   zapByDirection,
 } from './lib/surfingControls'
 
@@ -173,8 +174,23 @@ export default function App() {
       }
       if (action === 'open-live-browser') {
         e.preventDefault()
-        // TiviMate: OK while watching opens the Live channel side panel over video.
+        // TiviMate: ← (or second OK) opens the Live channel side panel over video.
         setView('live')
+        return
+      }
+      if (action === 'show-chrome') {
+        e.preventDefault()
+        setPlayer({ overlayVisible: true })
+        return
+      }
+      if (action === 'open-guide') {
+        e.preventDefault()
+        setView('guide')
+        return
+      }
+      if (action === 'previous-channel') {
+        e.preventDefault()
+        playPreviousChannel()
         return
       }
       if (action === 'open-menu') {
@@ -193,7 +209,6 @@ export default function App() {
         return
       }
       if (action === 'noop-immersive') {
-        // Swallow Back so the WebView / browser does not navigate away mid-play.
         e.preventDefault()
         return
       }
@@ -236,7 +251,7 @@ export default function App() {
       } else if (e.key === 'g' || e.key === 'G') {
         setView('guide')
       } else if (e.key === 'h' || e.key === 'H') {
-        setView('home')
+        setView('live')
       } else if (e.key === 'v' || e.key === 'V') {
         useIptvStore
           .getState()

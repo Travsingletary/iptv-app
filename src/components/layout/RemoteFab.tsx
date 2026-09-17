@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion'
-import { ArrowLeft, Circle, MoreHorizontal } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useIptvStore } from '../../store/useIptvStore'
 
 /**
- * Persistent remote / OK affordance — toggles the TV overlay menu.
- * Fire Stick map (wired in App via fireStickRemote):
- * OK/Enter opens Live channel side panel when immersive · Back dismisses · Menu/R toggles · ↑↓ zap (debounced) · 0–9 LCN.
+ * TV-first remote chrome:
+ * - Immersive: tiny low-contrast Menu control (physical remote preferred; keeps web/e2e working)
+ * - Overlay open: Back to TV
  */
 export function RemoteFab() {
   const menuOpen = useIptvStore((s) => s.menuOpen)
@@ -15,13 +15,13 @@ export function RemoteFab() {
 
   return (
     <div className="pointer-events-none absolute bottom-5 left-5 z-50 flex flex-col items-start gap-2 md:bottom-8 md:left-8">
-      {menuOpen && (
+      {menuOpen ? (
         <motion.button
           type="button"
           data-tv-focus
           data-testid="remote-back"
           aria-label="Dismiss menu"
-          className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/15 bg-ink-900/85 px-3.5 py-2 text-xs font-medium text-sand-50 shadow-lg backdrop-blur-md hover:border-ember-400/50 focus-visible:focus-ring"
+          className="pointer-events-auto flex items-center gap-2 rounded-full border border-ember-400/50 bg-ink-900/90 px-3.5 py-2 text-xs font-medium text-sand-50 shadow-lg backdrop-blur-md hover:border-ember-400/80"
           initial={prefs.reduceMotion ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => setMenuOpen(false)}
@@ -29,41 +29,19 @@ export function RemoteFab() {
           <ArrowLeft size={14} />
           Back to TV
         </motion.button>
+      ) : (
+        <button
+          type="button"
+          data-tv-focus
+          data-testid="remote-toggle"
+          aria-label="Open menu"
+          title="Menu (R)"
+          className="pointer-events-auto rounded-full border border-white/10 bg-ink-950/50 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-mist-400/80 backdrop-blur-sm transition hover:border-ember-400/40 hover:text-sand-100"
+          onClick={() => toggleMenu()}
+        >
+          Menu
+        </button>
       )}
-      <motion.button
-        type="button"
-        data-tv-focus
-        data-testid="remote-toggle"
-        aria-label={menuOpen ? 'Close remote menu' : 'Open remote menu'}
-        aria-pressed={menuOpen}
-        title="Remote menu (R)"
-        className={`pointer-events-auto relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border shadow-lg backdrop-blur-md transition focus-visible:focus-ring ${
-          menuOpen
-            ? 'border-ember-400/60 bg-ember-500/25 text-ember-300'
-            : 'border-white/20 bg-ink-900/80 text-sand-50 hover:border-ember-400/50'
-        }`}
-        whileTap={prefs.reduceMotion ? undefined : { scale: 0.92 }}
-        onClick={() => toggleMenu()}
-      >
-        <img
-          src="/brand/steadystream-mark.svg"
-          alt=""
-          className="absolute inset-0 h-full w-full object-cover opacity-90"
-          aria-hidden
-        />
-        <span className="absolute inset-1.5 rounded-xl border border-white/10" />
-        <MoreHorizontal
-          size={14}
-          className="absolute top-2.5 z-10 text-ember-300 drop-shadow"
-          aria-hidden
-        />
-        <Circle
-          size={22}
-          className={`relative z-10 ${menuOpen ? 'fill-ember-400/30 text-ember-300' : 'text-ember-400'}`}
-          strokeWidth={2.25}
-        />
-        <span className="sr-only">OK / Remote</span>
-      </motion.button>
     </div>
   )
 }

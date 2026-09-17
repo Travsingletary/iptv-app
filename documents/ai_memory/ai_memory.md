@@ -25,6 +25,7 @@
 - Perf / TiviMate / playlist (2026-09-16): removed legacy 500-channel persist cap; Live/Guide virtualized; OK opens Live side rail; `verify:perf-playlist`.
 - Channel surfing (2026-09-16): zap OSD + debounced tune, number-pad LCN, recents/favorites hop strip, stable video canvas; `verify:channel-surfing`.
 - BYOK AI (2026-09-16): Settings presets (OpenAI/Anthropic/Gemini/Groq/OpenRouter/custom) + on-device key; direct WebView provider calls for APK; Mock when empty; `docs/AI_BYOK.md`.
+- TV-first simplify (2026-09-17): primary nav Live/Guide/On Demand/Settings; provider folder chips by default; TiviMate-like remote (← list, OK chrome, Back→Guide); stronger focus cursor; Assistant FAB off by default.
 
 ### Still needs user credentials (not finishable in-repo)
 

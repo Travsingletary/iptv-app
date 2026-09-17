@@ -4,7 +4,7 @@ import { useIptvStore } from '../../store/useIptvStore'
 import { programsForChannel, progressPct } from '../../lib/epg'
 import { formatTimeRange, hoursGrid, startOfHour } from '../../lib/time'
 import { selectLiveChannels } from '../../store/useIptvStore'
-import { channelCategory, rankCategoryChips, rankChannelSearch } from '../../lib/categories'
+import { channelCategory, chipTestId, rankBrowseChips, rankChannelSearch } from '../../lib/categories'
 import { computeVirtualWindow } from '../../lib/virtualWindow'
 
 const HOUR_WIDTH = 240
@@ -22,6 +22,7 @@ export function EpgGuide() {
   const recentIds = useIptvStore((s) => s.recentIds)
   const playChannel = useIptvStore((s) => s.playChannel)
   const playerChannelId = useIptvStore((s) => s.player.channelId)
+  const categoryBrowseMode = useIptvStore((s) => s.prefs.categoryBrowseMode)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [draftSearch, setDraftSearch] = useState(search)
   const [scrollTop, setScrollTop] = useState(0)
@@ -30,12 +31,12 @@ export function EpgGuide() {
   const allLive = useMemo(() => selectLiveChannels(channels), [channels])
   const chips = useMemo(
     () =>
-      rankCategoryChips({
+      rankBrowseChips(categoryBrowseMode ?? 'provider', {
         channels: allLive,
         favorites,
         recentIds,
       }),
-    [allLive, favorites, recentIds],
+    [allLive, favorites, recentIds, categoryBrowseMode],
   )
 
   const live = useMemo(
@@ -163,12 +164,14 @@ export function EpgGuide() {
             key={chip.id}
             type="button"
             data-tv-focus
+            data-testid={`guide-chip-${chipTestId(chip.id)}`}
+            title={chip.label}
             onClick={() => setSelectedGroup(chip.id)}
             className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
               selectedGroup === chip.id ? 'bg-ember-500 text-ink-950' : 'bg-ink-800 text-mist-300'
             }`}
           >
-            {chip.label}
+            <span className="inline-block max-w-[10rem] truncate align-bottom">{chip.label}</span>
             <span className="ml-1 opacity-60">{chip.count}</span>
           </button>
         ))}

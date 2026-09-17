@@ -171,6 +171,65 @@ export interface RankCategoryChipsOptions {
   limit?: number
 }
 
+/**
+ * Rank chips from real provider group titles (`channel.group`).
+ * Default Live/Guide browse for MegaOTT — shows the folders the panel actually has.
+ */
+export function rankProviderGroupChips(options: RankCategoryChipsOptions): CategoryChip[] {
+  const { channels, favorites = [], limit = 48 } = options
+  const favSet = new Set(favorites)
+  const counts = new Map<string, number>()
+
+  for (const ch of channels) {
+    if (ch.kind && ch.kind !== 'live') continue
+    const label = (ch.group || '').trim() || 'Uncategorized'
+    counts.set(label, (counts.get(label) ?? 0) + 1)
+  }
+
+  const ranked = [...counts.entries()]
+    .map(([id, count]) => ({
+      id,
+      label: id,
+      count,
+      score: count,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, limit)
+
+  const favCount = channels.filter(
+    (ch) => favSet.has(ch.id) && (!ch.kind || ch.kind === 'live'),
+  ).length
+  const chips: CategoryChip[] = []
+  if (favCount > 0) {
+    chips.push({
+      id: FAVORITES_CHIP,
+      label: 'Favorites',
+      count: favCount,
+      score: Number.POSITIVE_INFINITY,
+    })
+  }
+  chips.push(...ranked)
+  return chips
+}
+
+/** Pick chip ranking by browse mode (provider folders vs smart buckets). */
+export function rankBrowseChips(
+  mode: 'provider' | 'smart',
+  options: RankCategoryChipsOptions,
+): CategoryChip[] {
+  return mode === 'smart' ? rankCategoryChips(options) : rankProviderGroupChips(options)
+}
+
+/** Safe test id fragment for a chip id (provider groups may include | / spaces). */
+export function chipTestId(chipId: string): string {
+  if (chipId === FAVORITES_CHIP) return 'favorites'
+  return chipId
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48) || 'group'
+}
+
 /** Rank normalized category chips: pin Favorites, then relevance-sorted buckets. */
 export function rankCategoryChips(options: RankCategoryChipsOptions): CategoryChip[] {
   const {

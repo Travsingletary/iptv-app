@@ -29,7 +29,7 @@ describe('fireStickRemote keys', () => {
   })
 })
 
-describe('resolveRemoteAction', () => {
+describe('resolveRemoteAction (TiviMate-like)', () => {
   const immersive = {
     menuOpen: false,
     overlayVisible: false,
@@ -46,9 +46,14 @@ describe('resolveRemoteAction', () => {
     focusMode: true,
   }
 
-  it('OK opens Live channel browser when immersive and nothing focused', () => {
+  it('OK shows chrome first, then opens Live list when chrome is up', () => {
     expect(
       resolveRemoteAction({ key: 'Enter', code: 'Enter', keyCode: 13 }, immersive, {
+        hasFocusedControl: false,
+      }),
+    ).toBe('show-chrome')
+    expect(
+      resolveRemoteAction({ key: 'Enter', code: 'Enter', keyCode: 13 }, chromeOnly, {
         hasFocusedControl: false,
       }),
     ).toBe('open-live-browser')
@@ -62,7 +67,7 @@ describe('resolveRemoteAction', () => {
     ).toBe('select-focused')
   })
 
-  it('Back dismisses overlay then hides chrome then noops', () => {
+  it('Back dismisses overlay, hides chrome, then opens Guide when immersive', () => {
     expect(
       resolveRemoteAction({ key: 'Escape', code: 'Escape', keyCode: 27 }, overlay),
     ).toBe('dismiss-menu')
@@ -71,7 +76,7 @@ describe('resolveRemoteAction', () => {
     ).toBe('hide-chrome')
     expect(
       resolveRemoteAction({ key: 'Escape', code: 'Escape', keyCode: 27 }, immersive),
-    ).toBe('noop-immersive')
+    ).toBe('open-guide')
   })
 
   it('Menu / R toggles overlay', () => {
@@ -98,16 +103,19 @@ describe('resolveRemoteAction', () => {
     ).toBe('focus-nav')
   })
 
-  it('Left/Right are focus-nav when rails/chrome present', () => {
+  it('Left opens channel list immersive; Right previous channel; chrome uses focus-nav', () => {
+    expect(
+      resolveRemoteAction({ key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37 }, immersive),
+    ).toBe('open-live-browser')
+    expect(
+      resolveRemoteAction({ key: 'ArrowRight', code: 'ArrowRight', keyCode: 39 }, immersive),
+    ).toBe('previous-channel')
     expect(
       resolveRemoteAction({ key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37 }, chromeOnly),
     ).toBe('focus-nav')
     expect(
       resolveRemoteAction({ key: 'ArrowRight', code: 'ArrowRight', keyCode: 39 }, overlay),
     ).toBe('focus-nav')
-    expect(
-      resolveRemoteAction({ key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37 }, immersive),
-    ).toBe('ignore')
   })
 })
 

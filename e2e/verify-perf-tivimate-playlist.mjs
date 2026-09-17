@@ -143,7 +143,7 @@ const afterReload = await page.evaluate(() => {
   }
 })
 
-// TiviMate OK path: dismiss → Enter opens live rail
+// TiviMate-like: Left opens live rail (OK shows chrome first)
 await page.evaluate(() => {
   document.body.tabIndex = -1
   document.body.focus()
@@ -154,11 +154,13 @@ await page.evaluate(() => {
   document.body.tabIndex = -1
   document.body.focus()
 })
-await page.keyboard.press('Enter')
+await page.keyboard.press('ArrowLeft')
 await page.waitForTimeout(500)
 const okOpensLive = await page.evaluate(() => ({
   rail: Boolean(document.querySelector('[data-testid="live-side-rail"]')),
-  compactNav: Boolean(document.querySelector('[data-testid="side-nav-compact"]')),
+  compactNav: Boolean(
+    document.querySelector('[data-testid="side-nav"][data-tv-first-nav="true"]'),
+  ),
   menuBack: Boolean(document.querySelector('[data-testid="remote-back"]')),
 }))
 

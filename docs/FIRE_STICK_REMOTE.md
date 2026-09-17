@@ -2,89 +2,57 @@
 
 Web remote layer lives in `src/lib/fireStickRemote.ts` + `src/App.tsx` + spatial focus in `src/lib/tvFocus.ts`. Channel surfing helpers live in `src/lib/channelSurfing.ts` + `src/lib/surfingControls.ts`. Browser keyboard simulation matches Fire Stick D-pad.
 
-Live betting / sportsbook overlays are **deferred** — not part of this remote map.
+Default mapping **mimics common TiviMate lean-back habits** (not a clone of their UI or trademarks). Live betting is deferred.
 
-## Remote map
+## Remote map (watching live / immersive)
 
-| Fire Stick | Browser sim | Immersive (menu closed) | Overlay open |
-| --- | --- | --- | --- |
-| **D-pad ↑ / ↓** | `ArrowUp` / `ArrowDown` | Channel zap (OSD + debounced tune) | Spatial focus (nav, chips, list) |
-| **D-pad ← / →** | `ArrowLeft` / `ArrowRight` | Focus player chrome / volume scrub when chrome visible; else ignored | Spatial focus across rails / chips / controls |
-| **Select / OK** | `Enter` | Opens **Live channel side panel** over video (TiviMate-like); commits digit entry if number pad active | Activates focused control |
-| **Back** | `Escape` / `Backspace` | Hide chrome if shown; cancel digit entry; if already immersive → **no-op** (do not unload player) | Dismiss overlay → immersive TV |
-| **0–9** | Digit keys | Number-pad LCN / index entry (overlay + auto-commit ~1.2s) | Typed into focused text fields only |
-| **Menu** | `ContextMenu` / Android `KEYCODE_MENU` (82) | Toggle overlay | Toggle overlay |
-| **R** (dev/web) | `r` / `R` | Toggle overlay (same as Menu) | Toggle overlay |
+| Fire Stick | Browser sim | Action |
+| --- | --- | --- |
+| **D-pad ↑ / ↓** | `ArrowUp` / `ArrowDown` | Channel zap (OSD + debounced tune) |
+| **D-pad ←** | `ArrowLeft` | Open **Live channel side list** over video |
+| **D-pad →** | `ArrowRight` | Previous / recent channel |
+| **Select / OK** | `Enter` | Show player chrome / info; OK again (chrome up) opens Live list |
+| **Back** | `Escape` / `Backspace` | Dismiss overlay → hide chrome → **open Guide** when already immersive |
+| **0–9** | Digit keys | Number-pad LCN / index entry |
+| **Menu** | `ContextMenu` / `R` (web) | Toggle overlay shell |
+
+### When an overlay is open
+
+| Control | Action |
+| --- | --- |
+| ↑↓←→ | Spatial focus (gold focus cursor) |
+| OK | Activate focused control |
+| Back | Dismiss overlay → immersive TV |
+
+## TV-first shell
+
+Primary nav (side rail): **Live TV · Guide · On Demand · Settings** only.  
+Home hub / Favorites page / Multi-view live under **Settings → Playback & UI**.  
+Assistant FAB is **off** by default (open from Settings).  
+Tiny **Menu** control stays for web/mouse; prefer the physical remote on Fire Stick.
+
+## Categories
+
+Default Live/Guide chips are **provider folders** (real MegaOTT / Xtream `group` titles).  
+Optional **Smart buckets** (News/Sports/…) under Settings → Live categories.
 
 ## Channel surfing
 
-Designed for fast lean-back zapping without slamming a single concurrent connection:
+1. **Zap OSD** — ↑↓ while immersive (`data-testid="zap-osd"`).
+2. **Debounced tune** — ~280ms idle before retune (`max_connections=1` safer).
+3. **Number pad** — digits → LCN / index.
+4. **Hop strip** — recents + favorites on the Live rail.
+5. **Stable canvas** — single `VideoPlayer`; zaps change URL only.
 
-1. **Zap OSD** — ↑↓ while immersive shows a brief bottom banner (`data-testid="zap-osd"`) with channel #, name, logo, and now/next when EPG is known. Auto-hides ~2.5s. Does not block video (`pointer-events-none`).
-2. **Debounced tune** — rapid ↑↓ updates the OSD / Live “on air” highlight immediately; the stream URL only tunes after ~280ms idle so intermediate channels are skipped.
-3. **Number pad** — digits build an overlay (`data-testid="channel-number-overlay"`); timeout or OK commits to matching LCN (`Channel.number` / Xtream `num` / M3U `tvg-chno`) or 1-based live index.
-4. **Recents / favorites strip** — Live rail hop chips (`data-testid="surfing-hop-strip"`) for last-watched and favorites.
-5. **Stable video canvas** — Shell keeps a single `VideoPlayer` mounted; zaps change stream URL only (soft teardown keeps the last frame).
+Focus cursor: thick gold outline + glow on `[data-tv-focus]:focus` (`src/index.css`).
 
-Always-visible ember focus rings: `src/index.css` (`button:focus`, `[data-tv-focus]:focus`, …).
+## Capacitor / Android TV leanback
 
-Remote FAB (`data-testid="remote-toggle"`) and Back-to-TV (`data-testid="remote-back"`) are in the spatial focus set.
-
-## Capacitor / Android TV leanback (packaging agent)
-
-When `android/` is generated via Capacitor, wire leanback so Fire Stick / Android TV can launch without a touchscreen.
-
-### `android/app/src/main/AndroidManifest.xml`
-
-Inside the main `<activity>` (Capacitor `MainActivity`):
-
-1. Keep landscape (TV):
-
-```xml
-android:screenOrientation="landscape"
-```
-
-2. Launcher + leanback intents:
-
-```xml
-<intent-filter>
-    <action android:name="android.intent.action.MAIN" />
-    <category android:name="android.intent.category.LAUNCHER" />
-    <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-</intent-filter>
-```
-
-3. In the root `<manifest>` (outside activity):
-
-```xml
-<uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-<uses-feature android:name="android.software.leanback" android:required="false" />
-```
-
-`leanback` required=`false` keeps phone installs working while still appearing under Fire TV Apps.
-
-### Optional banner
-
-Add `android:banner="@drawable/…"` on the application/activity for the Android TV launcher row.
-
-### Verify on device
-
-1. Sideload APK (see `docs/ANDROID_DISTRIBUTION.md`).
-2. Confirm SteadyStream appears in Fire TV Apps (LEANBACK_LAUNCHER).
-3. D-pad: focus rings move · OK opens Live channel side panel · Back returns to immersive · ↑↓ zaps when immersive · 0–9 enters channel number.
-
-### Do not
-
-- Require touchscreen.
-- Force `leanback` required=`true` unless the APK is TV-only.
-- Capture Back in immersive in a way that exits the activity on first press (web layer already `preventDefault`s; native WebView back may still need `onBackPressed` → inject Escape if the WebView consumes history).
+See previous leanback packaging notes in git history / Android agent docs: `LEANBACK_LAUNCHER`, touchscreen/leanback `required=false`.
 
 ## Tests
 
 ```bash
-npm test -- src/lib/fireStickRemote.test.ts src/lib/tvFocus.test.ts src/lib/channelSurfing.test.ts
+npm test -- src/lib/fireStickRemote.test.ts src/lib/tvFocus.test.ts src/lib/categories.test.ts
 AETHER_URL=http://127.0.0.1:5173 node e2e/verify-firestick-remote.mjs
-AETHER_URL=http://127.0.0.1:5173 npm run verify:channel-surfing
 ```
-
-Manual: open the app, press `Escape` until immersive, then `Enter` (menu), arrows (focus rings), `Escape` (dismiss), ↑↓ (zap OSD), digits (number pad).

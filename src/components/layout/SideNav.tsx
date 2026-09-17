@@ -1,9 +1,6 @@
 import { motion } from 'framer-motion'
 import {
   Clapperboard,
-  Compass,
-  Grid2x2,
-  Heart,
   Radio,
   Settings,
   Tv,
@@ -13,13 +10,11 @@ import { useIptvStore } from '../../store/useIptvStore'
 import { formatClock } from '../../lib/time'
 import { useEffect, useState } from 'react'
 
+/** TV-first primary destinations — Home / Favorites / Multi-view live under Settings. */
 const NAV: { id: AppView; label: string; icon: typeof Tv }[] = [
-  { id: 'home', label: 'Home', icon: Compass },
   { id: 'live', label: 'Live TV', icon: Radio },
   { id: 'guide', label: 'Guide', icon: Tv },
   { id: 'vod', label: 'On Demand', icon: Clapperboard },
-  { id: 'multiview', label: 'Multi-view', icon: Grid2x2 },
-  { id: 'favorites', label: 'Favorites', icon: Heart },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
@@ -39,98 +34,79 @@ export function SideNav({
   const [clock, setClock] = useState(formatClock())
 
   useEffect(() => {
-    const t = window.setInterval(() => setClock(formatClock()), 15_000)
-    return () => window.clearInterval(t)
+    const id = window.setInterval(() => setClock(formatClock()), 30_000)
+    return () => window.clearInterval(id)
   }, [])
 
-  const onNav = (id: AppView) => {
-    if (id === 'multiview') {
-      const layout = useIptvStore.getState().player.multiViewLayout
-      setMultiViewLayout(layout === 4 ? 4 : 2)
-      return
-    }
-    setView(id)
-  }
-
-  const wide = !compact
+  // Deep-link views kept off the primary rail still highlight Settings when active.
+  const activeId: AppView =
+    view === 'home' || view === 'favorites' || view === 'multiview' ? 'settings' : view
 
   return (
     <aside
-      data-testid={compact ? 'side-nav-compact' : 'side-nav'}
-      className={`relative z-30 flex h-full flex-col border-r border-white/8 backdrop-blur-xl ${
-        wide ? 'w-[4.75rem] md:w-56' : 'w-[4.75rem]'
+      className={`flex h-full flex-col border-r border-white/10 ${
+        compact ? 'w-[4.5rem]' : 'w-56'
       } ${overlay ? 'bg-ink-950/90 shadow-[8px_0_40px_rgba(0,0,0,0.45)]' : 'bg-ink-900/90'}`}
+      data-testid={compact ? 'side-nav-compact' : 'side-nav'}
+      data-tv-first-nav="true"
     >
-      <div className="border-b border-white/8 px-3 py-5 md:px-5">
-        <div className="flex items-center gap-3">
-          <img
-            src="/brand/steadystream-mark.svg"
-            alt=""
-            className="h-10 w-10 rounded-xl ring-1 ring-ember-400/40"
-            width={40}
-            height={40}
-          />
-          {wide && (
-            <div className="hidden md:block">
-              <p className="font-display text-lg font-bold leading-none tracking-tight text-ember-400">
-                SteadyStream
+      <div className={`flex items-center gap-2 px-3 py-4 ${compact ? 'justify-center' : ''}`}>
+        <img
+          src="/brand/steadystream-mark.svg"
+          alt=""
+          className="h-9 w-9 rounded-lg object-cover"
+        />
+        {!compact && (
+          <div className="min-w-0">
+            <p className="truncate font-display text-sm font-bold tracking-wide text-sand-50">
+              SteadyStream
+            </p>
+            {prefs.showClock && (
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-mist-400">
+                {clock}
               </p>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-mist-400">
-                Premium IPTV
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-2 md:p-3">
-        {NAV.map((item) => {
-          const active = view === item.id
-          const Icon = item.icon
+      <nav className="flex flex-1 flex-col gap-1 px-2 pb-4">
+        {NAV.map(({ id, label, icon: Icon }) => {
+          const selected = activeId === id
           return (
             <button
-              key={item.id}
+              key={id}
               type="button"
               data-tv-focus
-              data-testid={`nav-${item.id}`}
-              aria-label={item.label}
-              onClick={() => onNav(item.id)}
-              className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition focus-visible:focus-ring ${
-                active
+              data-testid={`nav-${id}`}
+              aria-current={selected ? 'page' : undefined}
+              onClick={() => {
+                if (id === 'multiview') setMultiViewLayout(2)
+                setView(id)
+              }}
+              className={`group relative z-10 flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+                compact ? 'justify-center px-2' : ''
+              } ${
+                selected
                   ? 'bg-ember-500/15 text-sand-50'
                   : 'text-mist-300 hover:bg-white/5 hover:text-sand-50'
               }`}
             >
-              {active && !reduceMotion && !compact && (
+              {selected && (
                 <motion.span
-                  layoutId="nav-pill"
-                  className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30"
-                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                  layoutId={reduceMotion ? undefined : 'nav-pill'}
+                  className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-2 ring-ember-400/50"
+                  transition={{ type: 'spring', stiffness: 420, damping: 36 }}
                 />
               )}
-              {active && (reduceMotion || compact) && (
-                <span className="pointer-events-none absolute inset-0 rounded-xl bg-ember-500/15 ring-1 ring-ember-400/30" />
-              )}
-              <Icon
-                size={20}
-                className={`relative z-10 shrink-0 ${active ? 'text-ember-400' : ''}`}
-              />
-              {wide && (
-                <span className="relative z-10 hidden text-sm font-medium md:inline">
-                  {item.label}
-                </span>
+              <Icon size={compact ? 22 : 18} className="relative z-10 shrink-0 text-ember-400" />
+              {!compact && (
+                <span className="relative z-10 text-sm font-medium">{label}</span>
               )}
             </button>
           )
         })}
       </nav>
-
-      {prefs.showClock && wide && (
-        <div className="hidden border-t border-white/8 px-5 py-4 md:block">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-mist-400">Local</p>
-          <p className="mt-1 font-display text-2xl font-semibold tabular-nums">{clock}</p>
-        </div>
-      )}
     </aside>
   )
 }
