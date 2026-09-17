@@ -58,9 +58,10 @@ export function OnboardingPage() {
     [portalUrl, portalUser, portalPass],
   )
 
-  const finish = (view: 'home' | 'settings' | 'live' = 'home') => {
+  const finish = (view: 'home' | 'settings' | 'live' = 'live') => {
     completeOnboarding()
     setView(view)
+    if (view === 'live') useIptvStore.getState().setMenuOpen(false)
   }
 
   const onConnect = async (e: FormEvent) => {

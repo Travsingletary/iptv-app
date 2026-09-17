@@ -73,15 +73,19 @@ try {
 
   await enterWithDemoPack(page)
 
-  await page.getByRole('button', { name: 'Home' }).click()
+  await page.getByTestId('remote-toggle').click().catch(() => {})
+  await page.getByTestId('nav-settings').click()
+  await page.waitForTimeout(400)
+  await page.getByTestId('open-home-page').click()
   await page.waitForTimeout(400)
   note(`home: ${/For You|SteadyStream|Continue/i.test(await page.locator('body').innerText())}`)
 
-  await page.getByRole('button', { name: 'Multi-view' }).click()
+  await page.getByTestId('nav-settings').click()
+  await page.getByTestId('open-multiview').click()
   await page.waitForTimeout(500)
-  note(`multiview nav: ${/mosaic|2-up|4-up/i.test(await page.locator('body').innerText())}`)
+  note(`multiview nav: ${/mosaic|2-up|4-up|Multi/i.test(await page.locator('body').innerText())}`)
 
-  await page.getByRole('button', { name: 'Settings' }).click()
+  await page.getByTestId('nav-settings').click()
   await page.waitForTimeout(400)
   const settings = await page.locator('body').innerText()
   note(`settings megaott: ${/MegaOTT/i.test(settings)}`)

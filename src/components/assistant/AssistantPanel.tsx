@@ -66,6 +66,7 @@ export function AssistantPanel() {
   const tickReminders = useIptvStore((s) => s.tickReminders)
   const tickAutomation = useIptvStore((s) => s.tickAutomation)
   const profiles = useIptvStore((s) => s.profiles)
+  const prefs = useIptvStore((s) => s.prefs)
   const reminderSyncStatus = useIptvStore((s) => s.reminderSyncStatus)
   const reminderSyncedAt = useIptvStore((s) => s.reminderSyncedAt)
   const refreshReminderSyncStatus = useIptvStore((s) => s.refreshReminderSyncStatus)
@@ -92,6 +93,12 @@ export function AssistantPanel() {
 
   useEffect(() => {
     void probeAiModeStatus().then(setAiMode)
+  }, [])
+
+  useEffect(() => {
+    const open = () => setOpen(true)
+    window.addEventListener('steadystream-open-assistant', open)
+    return () => window.removeEventListener('steadystream-open-assistant', open)
   }, [])
 
   useEffect(() => {
@@ -230,8 +237,14 @@ export function AssistantPanel() {
       {!open && (
         <button
           type="button"
+          data-tv-focus={prefs.showAssistantFab ? true : undefined}
+          data-testid="assistant-fab"
           onClick={() => setOpen(true)}
-          className="absolute bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-white/15 bg-ink-900/90 px-4 py-2.5 text-sm font-medium text-sand-50 shadow-glow backdrop-blur transition hover:border-ember-400/50"
+          className={
+            prefs.showAssistantFab
+              ? 'absolute bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-white/15 bg-ink-900/90 px-4 py-2.5 text-sm font-medium text-sand-50 shadow-glow backdrop-blur transition hover:border-ember-400/50'
+              : 'sr-only'
+          }
         >
           <MessageCircle size={16} className="text-ember-400" />
           Assistant

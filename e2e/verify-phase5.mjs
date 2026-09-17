@@ -110,9 +110,10 @@ try {
   await page.screenshot({ path: path.join(outDir, 'phase5_multiview_4up.png') }).catch((err) => note(`screenshot skipped: ${err instanceof Error ? err.message : err}`))
 
   // TV focus: tab to a nav button and check focus-visible styling path exists
-  await page.getByRole('button', { name: 'Home' }).focus()
+  await page.getByTestId('remote-toggle').click().catch(() => {})
+  await page.getByTestId('nav-live').focus()
   const focused = await page.evaluate(() => document.activeElement?.textContent?.trim() || '')
-  note(`tv focus home: ${focused.includes('Home')}`)
+  note(`tv focus live: ${/Live/i.test(focused)}`)
   await page.keyboard.press('ArrowDown')
   await page.waitForTimeout(200)
   const afterArrow = await page.evaluate(() => document.activeElement?.textContent?.trim() || '')

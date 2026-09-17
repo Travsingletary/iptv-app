@@ -45,6 +45,20 @@ function tuneQuiet(channelId: string) {
   s.playChannel(channelId, { quiet: true })
 }
 
+/** TiviMate-like → : hop to previous recent channel, else zap −1. */
+export function playPreviousChannel() {
+  clearDigitCommitTimer()
+  const s = useIptvStore.getState()
+  const live = liveList()
+  if (!live.length) return
+  const current = s.surfing.previewChannelId || s.player.channelId
+  const recent = s.recentIds.filter((id) => id !== current && live.some((c) => c.id === id))
+  const targetId = recent[0] ?? live[stepZapIndex(previewOrTunedIndex(live), -1, live.length)]?.id
+  if (!targetId) return
+  showOsdFor(targetId)
+  scheduleZapTune(targetId, tuneQuiet)
+}
+
 /** Immersive ↑/↓: update OSD immediately; debounce the actual stream tune. */
 export function zapByDirection(dir: -1 | 1) {
   clearDigitCommitTimer()

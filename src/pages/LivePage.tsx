@@ -7,9 +7,9 @@ import {
 import { nowPlaying } from '../lib/epg'
 import { channelDisplayNumber } from '../lib/channelSurfing'
 import {
-  FAVORITES_CHIP,
   channelCategory,
-  rankCategoryChips,
+  chipTestId,
+  rankBrowseChips,
   rankChannelSearch,
 } from '../lib/categories'
 import { computeVirtualWindow } from '../lib/virtualWindow'
@@ -41,9 +41,9 @@ const ChannelRow = memo(function ChannelRow({
       data-channel-id={ch.id}
       onClick={() => playChannel(ch.id)}
       style={{ height: ROW_HEIGHT }}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 text-left transition focus-visible:focus-ring ${
+      className={`flex w-full items-center gap-3 rounded-xl px-3 text-left transition ${
         on ? 'bg-ember-500/15 ring-1 ring-ember-400/40' : 'hover:bg-white/5'
-      }`}
+      } focus:bg-ember-500/25 focus:ring-2 focus:ring-ember-400 focus:outline-none`}
     >
       <span className="w-8 shrink-0 text-right font-mono text-[11px] tabular-nums text-mist-400">
         {displayNumber}
@@ -85,6 +85,7 @@ export function LivePage() {
   const favorites = useIptvStore((s) => s.favorites)
   const recentIds = useIptvStore((s) => s.recentIds)
   const surfingPreviewId = useIptvStore((s) => s.surfing.previewChannelId)
+  const categoryBrowseMode = useIptvStore((s) => s.prefs.categoryBrowseMode)
 
   const [draftSearch, setDraftSearch] = useState(search)
   const listRef = useRef<HTMLDivElement>(null)
@@ -94,12 +95,12 @@ export function LivePage() {
   const live = useMemo(() => selectLiveChannels(channels), [channels])
   const chips = useMemo(
     () =>
-      rankCategoryChips({
+      rankBrowseChips(categoryBrowseMode ?? 'provider', {
         channels: live,
         favorites,
         recentIds,
       }),
-    [live, favorites, recentIds],
+    [live, favorites, recentIds, categoryBrowseMode],
   )
 
   const filtered = useMemo(
@@ -243,7 +244,8 @@ export function LivePage() {
               key={chip.id}
               type="button"
               data-tv-focus
-              data-testid={`chip-${chip.id === FAVORITES_CHIP ? 'favorites' : chip.id.toLowerCase()}`}
+              data-testid={`chip-${chipTestId(chip.id)}`}
+              title={chip.label}
               onClick={() => setSelectedGroup(chip.id)}
               className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium focus-visible:focus-ring ${
                 selectedGroup === chip.id
@@ -251,7 +253,7 @@ export function LivePage() {
                   : 'bg-ink-800 text-mist-300'
               }`}
             >
-              {chip.label}
+              <span className="max-w-[9rem] truncate inline-block align-bottom">{chip.label}</span>
               <span className="ml-1 opacity-60">{chip.count}</span>
             </button>
           ))}

@@ -56,21 +56,22 @@ const fire = async (key, code = key) => {
   await page.waitForTimeout(280)
 }
 
+// Open overlay via Menu so we can exercise focus rings on the side nav.
 if (!(await page.locator('[data-testid="remote-back"]').count())) {
   await page.locator('[data-testid="remote-toggle"]').click()
   await page.waitForTimeout(450)
 }
 
 await page.evaluate(() => {
-  const home = [...document.querySelectorAll('aside button[data-tv-focus]')].find((b) =>
-    b.textContent.includes('Home'),
+  const live = [...document.querySelectorAll('aside button[data-tv-focus]')].find((b) =>
+    /Live/i.test(b.textContent || ''),
   )
-  home?.focus()
+  live?.focus()
 })
 await page.waitForTimeout(250)
 
 const seq = []
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 4; i++) {
   await fire('ArrowDown')
   seq.push(
     await page.evaluate(() =>
@@ -85,18 +86,30 @@ await page.waitForTimeout(350)
 const afterBack = await page.locator('[data-testid="remote-back"]').count()
 await page.screenshot({ path: path.join(outDir, 'firestick_back_immersive.png') })
 
+// Immersive ← opens Live side rail (TiviMate-like). OK alone shows chrome first.
 await page.evaluate(() => {
   document.body.tabIndex = -1
   document.body.focus()
 })
 await fire('Enter')
-const afterOk = await page.locator('[data-testid="remote-back"]').count()
-const liveRailAfterOk = await page.locator('[data-testid="live-side-rail"]').count()
+const chromeHint = await page.evaluate(() =>
+  Boolean(document.querySelector('[data-testid="player-chrome"], [data-tv-focus]')),
+)
+await fire('Escape')
+await page.waitForTimeout(200)
+await page.evaluate(() => {
+  document.body.tabIndex = -1
+  document.body.focus()
+})
+await fire('ArrowLeft')
+await page.waitForTimeout(400)
+const afterLeft = await page.locator('[data-testid="remote-back"]').count()
+const liveRailAfterLeft = await page.locator('[data-testid="live-side-rail"]').count()
 await page.screenshot({ path: path.join(outDir, 'firestick_ok_opens_live_rail.png') })
 
 await page.evaluate(() => {
   ;[...document.querySelectorAll('aside button')]
-    .find((b) => b.textContent.includes('Live TV'))
+    .find((b) => /Live/i.test(b.textContent || ''))
     ?.click()
 })
 await page.waitForTimeout(650)
@@ -112,7 +125,6 @@ const chip = await page.evaluate(() => {
   return {
     text: el?.textContent?.trim().slice(0, 40),
     testid: el?.getAttribute?.('data-testid'),
-    // Ember focus may be box-shadow or outline depending on a11y CSS.
     ring:
       shadow.includes('232, 160, 69') ||
       shadow.includes('212, 175, 55') ||
@@ -138,19 +150,20 @@ await browser.close()
 const dest = path.join(outDir, 'firestick_dpad_ok_back_demo.webm')
 fs.renameSync(videoPath, dest)
 
-const navReachedLive = seq.some((s) => /Live/i.test(s))
+const navReachedSettingsOrGuide = seq.some((s) => /Guide|On Demand|Settings|Live/i.test(s))
 const result = {
   ok:
     afterBack === 0 &&
-    afterOk === 1 &&
-    liveRailAfterOk === 1 &&
+    afterLeft === 1 &&
+    liveRailAfterLeft === 1 &&
     afterR === 1 &&
-    (navReachedLive || chip.testid?.startsWith('chip-')) &&
+    (navReachedSettingsOrGuide || chip.testid?.startsWith('chip-')) &&
     chip.ring,
   seq,
   afterBack,
-  afterOk,
-  liveRailAfterOk,
+  chromeHint,
+  afterLeft,
+  liveRailAfterLeft,
   afterR,
   chip,
   video: dest,

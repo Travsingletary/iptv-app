@@ -129,6 +129,9 @@ export interface ProgramReminder {
 
 export type AppView = 'home' | 'live' | 'guide' | 'vod' | 'favorites' | 'settings' | 'multiview'
 
+/** Live/Guide chip mode: provider folders (MegaOTT groups) vs collapsed smart buckets. */
+export type CategoryBrowseMode = 'provider' | 'smart'
+
 export interface UiPrefs {
   showClock: boolean
   autoHideControlsMs: number
@@ -138,4 +141,12 @@ export interface UiPrefs {
   largeText: boolean
   /** Accessibility: stronger gold/white contrast on black. */
   highContrast: boolean
+  /**
+   * Live/Guide category chips.
+   * `provider` (default) = real MegaOTT/Xtream group titles.
+   * `smart` = collapsed News/Sports/… buckets.
+   */
+  categoryBrowseMode: CategoryBrowseMode
+  /** Show floating Assistant button on the TV canvas (off by default — TV-first). */
+  showAssistantFab: boolean
 }

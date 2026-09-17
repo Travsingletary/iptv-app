@@ -22,7 +22,11 @@ Current behavior:
 
 ## Category chips
 
-Normalized chips (News, Sports, …) are a **browse aid**. Choosing a chip filters the list; **All** shows the full live count. Provider group titles remain on each channel.
+**Default:** Live/Guide chips are **provider folders** — the real MegaOTT / Xtream `group` titles (e.g. `US|SPORTS|ESPN`), sorted by channel count (Favorites pinned). Choosing a chip filters to that folder; **All** shows the full live count.
+
+**Optional:** Settings → Playback & UI → Live categories → **Smart buckets** collapses groups into News / Sports / Movies / Kids / … for a shorter chip row.
+
+Normalized smart buckets remain available to the assistant / NL EPG even when chips are in provider mode.
 
 ## Panel caveats
 
