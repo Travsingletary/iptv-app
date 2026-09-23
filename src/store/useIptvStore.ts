@@ -65,9 +65,20 @@ import {
 } from '../lib/automationRules'
 import {
   channelsForPersistence,
-  channelsForPersistenceTight,
   shouldBackgroundRefreshLiveCatalog,
 } from '../lib/persistChannels'
+import { createDebouncedLocalStorage } from '../lib/debouncedStorage'
+
+/** Avoid re-mapping 7k channels on every zap-driven persist. */
+let lastChannelsRef: Channel[] | null = null
+let lastPersistChannels: Channel[] | null = null
+
+function persistChannelsCached(channels: Channel[]): Channel[] {
+  if (channels === lastChannelsRef && lastPersistChannels) return lastPersistChannels
+  lastChannelsRef = channels
+  lastPersistChannels = channelsForPersistence(channels)
+  return lastPersistChannels
+}
 
 interface IptvState {
   onboarded: boolean
@@ -181,7 +192,8 @@ const defaultSurfing: SurfingState = {
 const defaultPrefs: UiPrefs = {
   showClock: true,
   autoHideControlsMs: 4200,
-  reduceMotion: false,
+  /** Fire Stick / lean-back: motion is a common source of input lag. */
+  reduceMotion: true,
   guideHours: 5,
   largeText: false,
   highContrast: false,
@@ -252,13 +264,14 @@ export const useIptvStore = create<IptvState>()(
 
       playChannel: (channelId, opts) =>
         set((s) => {
-          if (s.player.channelId && s.player.channelId !== channelId) {
+          const quiet = Boolean(opts?.quiet)
+          // Skip telemetry during rapid quiet zaps — sync localStorage writes freeze Fire Stick.
+          if (!quiet && s.player.channelId && s.player.channelId !== channelId) {
             void trackEvent('channel_switch', {
               fromChannelId: s.player.channelId,
               toChannelId: channelId,
             })
           }
-          const quiet = Boolean(opts?.quiet)
           // TV-first: tuning updates the always-on canvas without ripping the user
           // out of Home/Guide/Settings overlays. Callers that need a view change
           // (e.g. Live list, VOD play) call setView themselves.
@@ -961,7 +974,8 @@ export const useIptvStore = create<IptvState>()(
       name: 'aether-iptv-v2',
       partialize: (s) => {
         // Persist the full live catalog (MegaOTT ~7k). Panel VOD stays lazy — never snapshotted.
-        const persistChannels = channelsForPersistence(s.channels)
+        // Cache mapped channels so zaps (recentIds-only) do not re-walk 7k rows.
+        const persistChannels = persistChannelsCached(s.channels)
         return {
           onboarded: s.onboarded,
           favorites: s.favorites,
@@ -974,38 +988,7 @@ export const useIptvStore = create<IptvState>()(
           channels: persistChannels,
         }
       },
-      storage: createJSONStorage(() => ({
-        getItem: (name) => localStorage.getItem(name),
-        removeItem: (name) => localStorage.removeItem(name),
-        setItem: (name, value) => {
-          try {
-            localStorage.setItem(name, value)
-            return
-          } catch {
-            /* QuotaExceeded — compact logos out of the serialized snapshot */
-          }
-          try {
-            const parsed = JSON.parse(value) as {
-              state?: { channels?: Channel[] }
-              version?: number
-            }
-            if (parsed.state?.channels) {
-              parsed.state.channels = channelsForPersistenceTight(parsed.state.channels)
-            }
-            localStorage.setItem(name, JSON.stringify(parsed))
-            return
-          } catch {
-            /* fall through */
-          }
-          try {
-            const parsed = JSON.parse(value) as { state?: Record<string, unknown>; version?: number }
-            if (parsed.state) parsed.state.channels = []
-            localStorage.setItem(name, JSON.stringify(parsed))
-          } catch {
-            /* ignore */
-          }
-        },
-      })),
+      storage: createJSONStorage(() => createDebouncedLocalStorage(1600)),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<IptvState>
         const merged = { ...current, ...saved, surfing: defaultSurfing }

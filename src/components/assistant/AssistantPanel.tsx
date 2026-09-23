@@ -104,14 +104,18 @@ export function AssistantPanel() {
   useEffect(() => {
     const id = window.setInterval(() => {
       tickReminders()
+      if (open) {
+        tickAutomation()
+        refreshReminderSyncStatus()
+      }
+    }, open ? 8_000 : 30_000)
+    tickReminders()
+    if (open) {
       tickAutomation()
       refreshReminderSyncStatus()
-    }, 5_000)
-    tickReminders()
-    tickAutomation()
-    refreshReminderSyncStatus()
+    }
     return () => window.clearInterval(id)
-  }, [tickReminders, tickAutomation, refreshReminderSyncStatus])
+  }, [open, tickReminders, tickAutomation, refreshReminderSyncStatus])
 
   useEffect(() => {
     return () => {

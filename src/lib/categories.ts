@@ -176,7 +176,7 @@ export interface RankCategoryChipsOptions {
  * Default Live/Guide browse for MegaOTT — shows the folders the panel actually has.
  */
 export function rankProviderGroupChips(options: RankCategoryChipsOptions): CategoryChip[] {
-  const { channels, favorites = [], limit = 48 } = options
+  const { channels, favorites = [], limit = 24 } = options
   const favSet = new Set(favorites)
   const counts = new Map<string, number>()
 

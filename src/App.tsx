@@ -229,9 +229,9 @@ export default function App() {
         return
       }
 
-      // Spatial D-pad (overlay / chrome left-right)
+      // Spatial D-pad — scope to shell so we do not measure every node in the document.
       if (
-        handleTvDirectionalKey(e, document, {
+        handleTvDirectionalKey(e, document.querySelector('[data-tv-shell]') ?? document, {
           seedIfUnfocused: focusMode,
         })
       ) {

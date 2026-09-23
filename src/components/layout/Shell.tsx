@@ -23,12 +23,16 @@ export function Shell({ children }: { children: ReactNode }) {
   const menuOpen = useIptvStore((s) => s.menuOpen)
   const prefs = useIptvStore((s) => s.prefs)
   const player = useIptvStore((s) => s.player)
-  const channels = useIptvStore((s) => s.channels)
+  const channelId = player.channelId
+  const channel = useIptvStore((s) => {
+    const id = s.player.channelId
+    return id ? s.channels.find((c) => c.id === id) : undefined
+  })
+  const channelCount = useIptvStore((s) => s.channels.length)
   const playChannel = useIptvStore((s) => s.playChannel)
   const setPlayer = useIptvStore((s) => s.setPlayer)
   const setView = useIptvStore((s) => s.setView)
 
-  const channel = channels.find((c) => c.id === player.channelId)
   const isMultiView = view === 'multiview'
   const showVideoCanvas = Boolean(channel) && !isMultiView
   /** Live list is a side rail so the TV + chrome stay visible (TiviMate). */
@@ -37,19 +41,21 @@ export function Shell({ children }: { children: ReactNode }) {
 
   // Keep a live channel tuned so the canvas is never empty after onboarding.
   useEffect(() => {
-    if (player.channelId || isMultiView) return
-    const live = channels.find((c) => c.kind === 'live') || channels[0]
+    if (channelId || isMultiView || channelCount === 0) return
+    const live =
+      useIptvStore.getState().channels.find((c) => c.kind === 'live') ||
+      useIptvStore.getState().channels[0]
     if (live) playChannel(live.id)
-  }, [player.channelId, channels, playChannel, isMultiView])
+  }, [channelId, channelCount, playChannel, isMultiView])
 
   const reduce = prefs.reduceMotion || liveRail
   const panelTransition = reduce
-    ? { duration: liveRail ? 0.12 : 0.01 }
+    ? { duration: liveRail ? 0.1 : 0.01 }
     : { type: 'spring' as const, stiffness: 380, damping: 34, mass: 0.85 }
-  const liveTransition = { duration: 0.14, ease: [0.22, 1, 0.36, 1] as const }
+  const liveTransition = { duration: 0.12, ease: [0.22, 1, 0.36, 1] as const }
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-ink-950">
+    <div className="relative h-full min-h-0 overflow-hidden bg-ink-950" data-tv-shell>
       {/* Layer 0 — always-on TV canvas */}
       {showVideoCanvas && (
         <div
