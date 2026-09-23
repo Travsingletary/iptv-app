@@ -24,6 +24,7 @@ interface EventLogger {
 
 const BUFFER_KEY = 'aether_event_buffer'
 let memoryBuffer: ClientEvent[] = []
+let writeTimer: ReturnType<typeof setTimeout> | null = null
 
 function canUseStorage() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
@@ -44,7 +45,17 @@ function readBuffer() {
 function writeBuffer(events: ClientEvent[]) {
   memoryBuffer = events
   if (!canUseStorage()) return
-  window.localStorage.setItem(BUFFER_KEY, JSON.stringify(events.slice(-200)))
+  const payload = JSON.stringify(events.slice(-200))
+  // Debounce disk writes — channel_switch spam was freezing Fire Stick WebView.
+  if (writeTimer) clearTimeout(writeTimer)
+  writeTimer = setTimeout(() => {
+    writeTimer = null
+    try {
+      window.localStorage.setItem(BUFFER_KEY, payload)
+    } catch {
+      /* ignore quota */
+    }
+  }, 1200)
 }
 
 async function trySend(events: ClientEvent[], sb: SupabaseClient | null) {

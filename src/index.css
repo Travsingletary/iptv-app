@@ -72,7 +72,6 @@ body {
 
   button:focus,
   [data-tv-focus]:focus {
-    transform: scale(1.03);
     z-index: 2;
   }
 

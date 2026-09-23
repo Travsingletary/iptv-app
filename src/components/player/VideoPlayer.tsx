@@ -40,11 +40,13 @@ export function VideoPlayer({
   const volume = useIptvStore((s) => s.player.volume)
   const catchup = useIptvStore((s) => s.player.catchup)
   const playbackNonce = useIptvStore((s) => s.player.playbackNonce)
-  const channels = useIptvStore((s) => s.channels)
+  const channel = useIptvStore((s) => {
+    const id = channelIdOverride ?? s.player.channelId
+    return id ? s.channels.find((c) => c.id === id) : undefined
+  })
   const setPlayer = useIptvStore((s) => s.setPlayer)
   const setStreamError = useIptvStore((s) => s.setStreamError)
 
-  const channel = channels.find((c) => c.id === channelId)
   const streamUrl =
     !channelIdOverride && catchup?.active && catchup.url ? catchup.url : channel?.url
 
