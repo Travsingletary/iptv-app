@@ -95,8 +95,13 @@ try {
   if (!types.play_start) throw new Error('Expected play_start event')
   if (!types.favorite_toggle) throw new Error('Expected favorite_toggle event')
 
-  // Assistant panel + Live AI badge + live chat tool
-  await page.getByRole('button', { name: /^Assistant$/i }).click()
+  // Assistant panel + Live AI badge + live chat tool.
+  // TV-first: the floating FAB is sr-only unless prefs.showAssistantFab —
+  // open via Settings so the panel is reachable without enabling the FAB.
+  await page.getByTestId('remote-toggle').click().catch(() => {})
+  await page.getByTestId('nav-settings').click()
+  await page.waitForTimeout(400)
+  await page.getByTestId('open-assistant-from-settings').click()
   await page.waitForTimeout(600)
   const modeBadge = page.getByTestId('assistant-ai-mode')
   const modeText = (await modeBadge.count()) ? await modeBadge.innerText() : ''
