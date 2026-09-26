@@ -243,9 +243,6 @@ export const useIptvStore = create<IptvState>()(
       completeOnboarding: () => set({ onboarded: true, view: 'live', menuOpen: false }),
 
       setSearch: (search) => {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/f65a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f65a'},body:JSON.stringify({sessionId:'f65a',hypothesisId:'C',location:'useIptvStore.ts:setSearch',message:'setSearch called',data:{query:search.slice(0,40)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         set({ search })
         void trackEvent('search_query', { query: search.slice(0, 120) })
       },
@@ -255,9 +252,6 @@ export const useIptvStore = create<IptvState>()(
       toggleFavorite: (channelId) =>
         set((s) => {
           const favored = !s.favorites.includes(channelId)
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/f65a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f65a'},body:JSON.stringify({sessionId:'f65a',hypothesisId:'C',location:'useIptvStore.ts:toggleFavorite',message:'toggleFavorite called',data:{channelId,favored},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
           void trackEvent('favorite_toggle', { channelId, favored })
           const favorites = favored
             ? [...s.favorites, channelId]
@@ -272,11 +266,7 @@ export const useIptvStore = create<IptvState>()(
         set((s) => {
           const quiet = Boolean(opts?.quiet)
           // Skip telemetry during rapid quiet zaps — sync localStorage writes freeze Fire Stick.
-          const willTrack = !quiet && !!s.player.channelId && s.player.channelId !== channelId
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/f65a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f65a'},body:JSON.stringify({sessionId:'f65a',hypothesisId:'D',location:'useIptvStore.ts:playChannel',message:'playChannel called',data:{channelId,quiet,from:s.player.channelId,willTrackSwitch:willTrack},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
-          if (willTrack) {
+          if (!quiet && s.player.channelId && s.player.channelId !== channelId) {
             void trackEvent('channel_switch', {
               fromChannelId: s.player.channelId,
               toChannelId: channelId,
