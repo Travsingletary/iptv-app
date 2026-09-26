@@ -15,6 +15,7 @@
 ## Phase status
 
 - Phase 1 verified: assistant panel, event buffer telemetry, For You Now, `/api/assistant` tools; Live AI when `OPENAI_API_KEY` is set (`e2e/verify-phase1.mjs`). `.env` AI keys preferred over stale shell exports.
+- Phase 1 → main (2026-09-26): restored app from empty `main` stubs onto `cursor/finish-phase1-85ea`. Fixed event-buffer race (memory authoritative + 200ms persist debounce) that dropped `search_query`/`channel_switch`/`favorite_toggle` under rapid zaps. Phase1 e2e opens Assistant via Settings (TV-first FAB is sr-only). `verify:phase1` → `PHASE1_VERIFY_OK` (mock AI).
 - Phase 2 verified: voice intents, reminders, stream fallback chips (`e2e/verify-phase2.mjs`). Live AI mute/remind tool-merge harden (`assistantCore` fills missing local tools on clear commands).
 - Phase 3 verified: agent loop (`agentLoop`), automation rules, OpenAI-compatible provider adapter (env-gated), optional Supabase reminder sync (`e2e/verify-phase3.mjs`).
 - Phase 4 verified: OpenAI-compatible multi-round tools loop (API key gated), household profiles, NL EPG search, reminder sync UX (`e2e/verify-phase4.mjs`).
