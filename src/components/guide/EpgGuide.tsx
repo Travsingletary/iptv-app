@@ -23,12 +23,16 @@ export function EpgGuide() {
   const playChannel = useIptvStore((s) => s.playChannel)
   const playerChannelId = useIptvStore((s) => s.player.channelId)
   const categoryBrowseMode = useIptvStore((s) => s.prefs.categoryBrowseMode)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [draftSearch, setDraftSearch] = useState(search)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(640)
 
-  const allLive = useMemo(() => selectLiveChannels(channels), [channels])
+  const allLive = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const chips = useMemo(
     () =>
       rankBrowseChips(categoryBrowseMode ?? 'provider', {

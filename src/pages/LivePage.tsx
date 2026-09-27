@@ -86,13 +86,18 @@ export function LivePage() {
   const recentIds = useIptvStore((s) => s.recentIds)
   const surfingPreviewId = useIptvStore((s) => s.surfing.previewChannelId)
   const categoryBrowseMode = useIptvStore((s) => s.prefs.categoryBrowseMode)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
+  const setPrefs = useIptvStore((s) => s.setPrefs)
 
   const [draftSearch, setDraftSearch] = useState(search)
   const listRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [viewportHeight, setViewportHeight] = useState(640)
 
-  const live = useMemo(() => selectLiveChannels(channels), [channels])
+  const live = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const chips = useMemo(
     () =>
       rankBrowseChips(categoryBrowseMode ?? 'provider', {
@@ -198,17 +203,35 @@ export function LivePage() {
               {filtered.length === live.length
                 ? `${live.length.toLocaleString()} live`
                 : `${filtered.length.toLocaleString()} of ${live.length.toLocaleString()} live`}
+              {liveRegionFilter === 'usa' ? ' · USA only' : ''}
             </p>
           </div>
-          <button
-            type="button"
-            data-tv-focus
-            data-testid="watch-fullscreen"
-            onClick={() => setMenuOpen(false)}
-            className="rounded-full border border-ember-400/40 bg-ember-500/15 px-4 py-2 text-sm font-medium text-ember-200 hover:border-ember-400/70 focus-visible:focus-ring"
-          >
-            Watch full screen
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-tv-focus
+              data-testid="live-region-toggle"
+              onClick={() =>
+                setPrefs({ liveRegionFilter: liveRegionFilter === 'usa' ? 'all' : 'usa' })
+              }
+              className={`rounded-full border px-3 py-2 text-xs font-medium focus-visible:focus-ring ${
+                liveRegionFilter === 'usa'
+                  ? 'border-ember-400/50 bg-ember-500/15 text-ember-200'
+                  : 'border-white/15 bg-ink-800 text-mist-300'
+              }`}
+            >
+              {liveRegionFilter === 'usa' ? 'USA only' : 'All countries'}
+            </button>
+            <button
+              type="button"
+              data-tv-focus
+              data-testid="watch-fullscreen"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-full border border-ember-400/40 bg-ember-500/15 px-4 py-2 text-sm font-medium text-ember-200 hover:border-ember-400/70 focus-visible:focus-ring"
+            >
+              Watch full screen
+            </button>
+          </div>
         </div>
         <div className="relative">
           <Search

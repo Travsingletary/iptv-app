@@ -11,8 +11,12 @@ export function ZapOsd() {
   const epg = useIptvStore((s) => s.epg)
   const playerChannelId = useIptvStore((s) => s.player.channelId)
   const reduceMotion = useIptvStore((s) => s.prefs.reduceMotion)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
 
-  const live = useMemo(() => selectLiveChannels(channels), [channels])
+  const live = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const previewId = surfing.previewChannelId || playerChannelId
   const idx = live.findIndex((c) => c.id === previewId)
   const channel = idx >= 0 ? live[idx] : channels.find((c) => c.id === previewId)

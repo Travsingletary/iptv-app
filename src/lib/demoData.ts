@@ -43,7 +43,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_aether_one',
     name: 'SteadyStream One',
-    group: 'Entertainment',
+    group: 'USA | Entertainment',
     url: DEMO_STREAMS.bigBuck,
     kind: 'live',
     number: 1,
@@ -55,7 +55,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_pulse_news',
     name: 'Pulse News 24',
-    group: 'News',
+    group: 'USA | News',
     url: DEMO_STREAMS.appleBipbop,
     kind: 'live',
     number: 2,
@@ -67,7 +67,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_arena_sports',
     name: 'Arena Sports HD',
-    group: 'Sports',
+    group: 'USA | Sports',
     url: DEMO_STREAMS.bbb,
     kind: 'live',
     number: 3,
@@ -80,7 +80,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_horizon_docs',
     name: 'Horizon Docs',
-    group: 'Documentary',
+    group: 'USA | Documentary',
     url: DEMO_STREAMS.tears,
     kind: 'live',
     number: 4,
@@ -92,7 +92,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_lumen_kids',
     name: 'Lumen Kids',
-    group: 'Kids',
+    group: 'USA | Kids',
     url: DEMO_STREAMS.fmp4,
     kind: 'live',
     number: 5,
@@ -104,7 +104,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_wave_music',
     name: 'Wave Music TV',
-    group: 'Music',
+    group: 'USA | Music',
     url: DEMO_STREAMS.ocean,
     kind: 'live',
     number: 6,
@@ -116,7 +116,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_noir_cinema',
     name: 'Noir Cinema',
-    group: 'Movies',
+    group: 'USA | Movies',
     url: DEMO_STREAMS.tears,
     kind: 'live',
     number: 7,
@@ -128,7 +128,7 @@ export const DEMO_CHANNELS: Channel[] = [
   {
     id: 'live_metro_local',
     name: 'Metro Local',
-    group: 'Local',
+    group: 'USA | Local',
     url: DEMO_STREAMS.bigBuck,
     kind: 'live',
     number: 8,

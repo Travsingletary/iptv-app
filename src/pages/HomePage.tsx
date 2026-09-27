@@ -15,24 +15,28 @@ export function HomePage() {
   const favorites = useIptvStore((s) => s.favorites)
   const recentIds = useIptvStore((s) => s.recentIds)
   const profiles = useIptvStore((s) => s.profiles)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
   const activeProfile = useMemo(() => getActiveProfile(profiles), [profiles])
 
-  const live = useMemo(() => selectLiveChannels(channels), [channels])
+  const live = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const vod = useMemo(() => selectVod(channels), [channels])
   const featured = live[0] || vod[0] || channels[0]
-  const favs = channels.filter((c) => favorites.includes(c.id))
+  const favs = live.filter((c) => favorites.includes(c.id))
   const recent = recentIds
-    .map((id) => channels.find((c) => c.id === id))
+    .map((id) => live.find((c) => c.id === id))
     .filter(Boolean) as typeof channels
   const forYouNow = useMemo(
     () =>
       buildForYouNow({
-        channels,
+        channels: live,
         favorites,
         recentIds,
         interestTags: activeProfile.interestTags,
       }),
-    [activeProfile.interestTags, channels, favorites, recentIds],
+    [activeProfile.interestTags, live, favorites, recentIds],
   )
 
   const byGroup = useMemo(() => {

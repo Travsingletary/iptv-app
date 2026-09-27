@@ -20,6 +20,7 @@ import type {
   AppView,
   Channel,
   EpgProgram,
+  LiveRegionFilter,
   PlayerState,
   PlaylistSource,
   ProgramReminder,
@@ -27,6 +28,7 @@ import type {
   UiPrefs,
   VodCategory,
 } from '../types/iptv'
+import { filterLiveByRegion } from '../lib/usaChannels'
 import {
   createReminder,
   dismissReminder as dismissReminderPure,
@@ -198,6 +200,8 @@ const defaultPrefs: UiPrefs = {
   largeText: false,
   highContrast: false,
   categoryBrowseMode: 'provider',
+  /** Default lean-back: USA channels only (MegaOTT country folders). */
+  liveRegionFilter: 'usa',
   showAssistantFab: false,
 }
 
@@ -1023,6 +1027,8 @@ export const useIptvStore = create<IptvState>()(
           ...(saved.prefs ?? {}),
           categoryBrowseMode:
             saved.prefs?.categoryBrowseMode === 'smart' ? 'smart' : 'provider',
+          liveRegionFilter:
+            saved.prefs?.liveRegionFilter === 'all' ? 'all' : 'usa',
           showAssistantFab: Boolean(saved.prefs?.showAssistantFab),
         }
         return merged
@@ -1048,8 +1054,11 @@ export const useIptvStore = create<IptvState>()(
   ),
 )
 
-export function selectLiveChannels(channels: Channel[]) {
-  return channels.filter((c) => c.kind === 'live')
+export function selectLiveChannels(
+  channels: Channel[],
+  region: LiveRegionFilter = 'all',
+) {
+  return filterLiveByRegion(channels, region)
 }
 
 export function selectVod(channels: Channel[]) {

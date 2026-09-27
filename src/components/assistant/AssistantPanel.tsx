@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Bell, Mic, MicOff, MessageCircle, Send, X } from 'lucide-react'
 import { useIptvStore } from '../../store/useIptvStore'
+import { filterLiveByRegion } from '../../lib/usaChannels'
 import { askAssistant } from '../../lib/assistantClient'
 import type { AssistantToolCall } from '../../lib/assistantCore'
 import type { AgentStep } from '../../lib/agentLoop'
@@ -76,19 +77,28 @@ export function AssistantPanel() {
   const speechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
   const upcomingReminders = useMemo(() => activeReminders(reminders).slice(0, 6), [reminders])
 
+  const scopedChannels = useMemo(() => {
+    const region = prefs.liveRegionFilter ?? 'usa'
+    if (region !== 'usa') return channels
+    const liveUsa = filterLiveByRegion(channels, 'usa')
+    const liveIds = new Set(liveUsa.map((c) => c.id))
+    // Keep VOD titles; only restrict live to USA when filter is on.
+    return channels.filter((c) => c.kind !== 'live' || liveIds.has(c.id))
+  }, [channels, prefs.liveRegionFilter])
+
   const snapshot = useMemo(
     () => ({
       view,
       favorites,
       recentIds,
-      channels,
+      channels: scopedChannels,
       epg,
       currentChannelId,
       profileId: activeProfile.id,
       interestTags: activeProfile.interestTags,
       history: memoryAsHistory(loadConversationMemory(activeProfile.id), 8),
     }),
-    [activeProfile.id, activeProfile.interestTags, channels, currentChannelId, epg, favorites, recentIds, view, messages],
+    [activeProfile.id, activeProfile.interestTags, scopedChannels, currentChannelId, epg, favorites, recentIds, view, messages],
   )
 
   useEffect(() => {

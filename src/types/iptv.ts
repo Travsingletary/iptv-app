@@ -132,6 +132,9 @@ export type AppView = 'home' | 'live' | 'guide' | 'vod' | 'favorites' | 'setting
 /** Live/Guide chip mode: provider folders (MegaOTT groups) vs collapsed smart buckets. */
 export type CategoryBrowseMode = 'provider' | 'smart'
 
+/** Live browse region scope — USA folders only vs full panel catalog. */
+export type LiveRegionFilter = 'usa' | 'all'
+
 export interface UiPrefs {
   showClock: boolean
   autoHideControlsMs: number
@@ -147,6 +150,12 @@ export interface UiPrefs {
    * `smart` = collapsed News/Sports/… buckets.
    */
   categoryBrowseMode: CategoryBrowseMode
+  /**
+   * Live/Guide/zap region filter.
+   * `usa` (default) = USA / US folder + US-network channels only.
+   * `all` = full live catalog from the panel.
+   */
+  liveRegionFilter: LiveRegionFilter
   /** Show floating Assistant button on the TV canvas (off by default — TV-first). */
   showAssistantFab: boolean
 }

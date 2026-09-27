@@ -1114,6 +1114,31 @@ export function SettingsPage() {
             <option value="smart">Smart buckets</option>
           </select>
         </label>
+        <label
+          className="flex items-center justify-between gap-4 text-sm"
+          data-testid="live-region-filter"
+        >
+          <span>
+            Live region
+            <span className="mt-0.5 block text-xs text-mist-400">
+              USA only hides UK/Canada/Latino/… folders. Default for lean-back.
+            </span>
+          </span>
+          <select
+            data-tv-focus
+            data-testid="live-region-select"
+            className="rounded-lg border border-white/15 bg-ink-850 px-3 py-2 text-sm"
+            value={prefs.liveRegionFilter ?? 'usa'}
+            onChange={(e) =>
+              setPrefs({
+                liveRegionFilter: e.target.value === 'all' ? 'all' : 'usa',
+              })
+            }
+          >
+            <option value="usa">USA channels only</option>
+            <option value="all">All countries</option>
+          </select>
+        </label>
         <label className="flex items-center justify-between gap-4 text-sm">
           Show Assistant button on TV
           <input

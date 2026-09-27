@@ -13,7 +13,8 @@ import { useIptvStore } from '../store/useIptvStore'
 import { selectLiveChannels } from '../store/useIptvStore'
 
 function liveList() {
-  return selectLiveChannels(useIptvStore.getState().channels)
+  const s = useIptvStore.getState()
+  return selectLiveChannels(s.channels, s.prefs.liveRegionFilter ?? 'usa')
 }
 
 function previewOrTunedIndex(live: ReturnType<typeof liveList>) {

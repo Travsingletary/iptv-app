@@ -6,11 +6,15 @@ import { selectLiveChannels, useIptvStore } from '../store/useIptvStore'
 export function MultiViewPage() {
   const channels = useIptvStore((s) => s.channels)
   const player = useIptvStore((s) => s.player)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
   const setMultiViewLayout = useIptvStore((s) => s.setMultiViewLayout)
   const setMultiViewSlot = useIptvStore((s) => s.setMultiViewSlot)
   const playChannel = useIptvStore((s) => s.playChannel)
 
-  const live = useMemo(() => selectLiveChannels(channels), [channels])
+  const live = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const layout = player.multiViewLayout === 1 ? 2 : player.multiViewLayout
   const slots = player.multiViewIds.slice(0, layout)
 

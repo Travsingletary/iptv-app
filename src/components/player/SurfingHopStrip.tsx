@@ -16,8 +16,12 @@ export function SurfingHopStrip({ variant = 'rail' }: SurfingHopStripProps) {
   const playerChannelId = useIptvStore((s) => s.player.channelId)
   const previewId = useIptvStore((s) => s.surfing.previewChannelId)
   const playChannel = useIptvStore((s) => s.playChannel)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
 
-  const live = useMemo(() => selectLiveChannels(channels), [channels])
+  const live = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const byId = useMemo(() => new Map(live.map((c) => [c.id, c])), [live])
   const currentId = previewId || playerChannelId
 

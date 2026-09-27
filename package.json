@@ -25,6 +25,7 @@
     "verify:ai-byok": "node e2e/verify-ai-byok.mjs",
     "verify:tv-first": "node e2e/verify-tv-first-simplify.mjs",
     "verify:response-perf": "node e2e/verify-response-perf.mjs",
+    "verify:usa-filter": "node e2e/verify-usa-filter.mjs",
     "test:e2e": "node e2e/verify-all.mjs",
     "check:demo-streams": "node e2e/check-demo-streams.mjs",
     "android:sync": "npm run build && npx cap sync android",

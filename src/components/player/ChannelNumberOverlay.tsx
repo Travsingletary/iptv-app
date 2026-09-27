@@ -8,8 +8,12 @@ export function ChannelNumberOverlay() {
   const surfing = useIptvStore((s) => s.surfing)
   const channels = useIptvStore((s) => s.channels)
   const reduceMotion = useIptvStore((s) => s.prefs.reduceMotion)
+  const liveRegionFilter = useIptvStore((s) => s.prefs.liveRegionFilter)
 
-  const live = useMemo(() => selectLiveChannels(channels), [channels])
+  const live = useMemo(
+    () => selectLiveChannels(channels, liveRegionFilter ?? 'usa'),
+    [channels, liveRegionFilter],
+  )
   const match = useMemo(
     () => (surfing.digitBuffer ? matchChannelByNumber(live, surfing.digitBuffer) : null),
     [live, surfing.digitBuffer],
