@@ -1,0 +1,37 @@
+# AI Memory
+
+- Prefer concise, tested claims only.
+- Product brand for this repo: **SteadyStream** premium IPTV player.
+- Design: black/gold SteadyStream palette, Outfit + Sora; cinematic dark media UI is intentional for IPTV/Netflix parity.
+
+## Verify-before-building gate (HARD RULE)
+
+- After every non-trivial change, verify with runtime evidence (automated tests and/or manual UI/API checks) before starting the next feature or change.
+- Do not stack new work on unverified or broken foundations.
+- If verification fails, fix first — then re-verify.
+- Prefer honest partial/failed status over claiming success.
+- Applies to all Cursor agents working in this repository.
+
+## Phase status
+
+- Phase 1 verified: assistant panel, event buffer telemetry, For You Now, `/api/assistant` tools; Live AI when `OPENAI_API_KEY` is set (`e2e/verify-phase1.mjs`). `.env` AI keys preferred over stale shell exports.
+- Phase 1 → main (2026-09-26): restored app from empty `main` stubs onto `cursor/finish-phase1-85ea`. Fixed event-buffer race (memory authoritative + 200ms persist debounce) that dropped `search_query`/`channel_switch`/`favorite_toggle` under rapid zaps. Phase1 e2e opens Assistant via Settings (TV-first FAB is sr-only). `verify:phase1` → `PHASE1_VERIFY_OK` (mock AI).
+- Phase 2 verified: voice intents, reminders, stream fallback chips (`e2e/verify-phase2.mjs`). Live AI mute/remind tool-merge harden (`assistantCore` fills missing local tools on clear commands).
+- Phase 3 verified: agent loop (`agentLoop`), automation rules, OpenAI-compatible provider adapter (env-gated), optional Supabase reminder sync (`e2e/verify-phase3.mjs`).
+- Phase 4 verified: OpenAI-compatible multi-round tools loop (API key gated), household profiles, NL EPG search, reminder sync UX (`e2e/verify-phase4.mjs`).
+- Phase 5 verified: Xtream login + demo fallback, catchup/timeshift stub UX, 2/4-up multi-view, TV spatial focus (`e2e/verify-phase5.mjs`).
+- Phase 6 verified: Supabase RLS notes/migration, CI e2e suite (`test:e2e`), README phase map + env docs (`e2e/verify-phase6.mjs`).
+- Finish pass verified: Supabase Auth Settings UI (demo-safe), AI Mock/Live indicator, Xtream/catch-up harden, multi-view single audible pane (`e2e/verify-finish.mjs`).
+- Autonomous re-verify (2026-09-07): `verify:phase1` → `PHASE1_VERIFY_OK` (Live AI); `test:e2e` → `VERIFY_ALL_OK`; `npm test` 50; `npm run build` OK.
+- Perf / TiviMate / playlist (2026-09-16): removed legacy 500-channel persist cap; Live/Guide virtualized; OK opens Live side rail; `verify:perf-playlist`.
+- Channel surfing (2026-09-16): zap OSD + debounced tune, number-pad LCN, recents/favorites hop strip, stable video canvas; `verify:channel-surfing`.
+- BYOK AI (2026-09-16): Settings presets (OpenAI/Anthropic/Gemini/Groq/OpenRouter/custom) + on-device key; direct WebView provider calls for APK; Mock when empty; `docs/AI_BYOK.md`.
+- TV-first simplify (2026-09-17): primary nav Live/Guide/On Demand/Settings; provider folder chips by default; TiviMate-like remote (← list, OK chrome, Back→Guide); stronger focus cursor; Assistant FAB off by default.
+- Response perf (2026-09-23): debounced Zustand persist (stops 7k-channel JSON on every zap), cached channel partialize, quiet-zap skips telemetry, reduceMotion default on, scoped TV focus, leaner Shell/VideoPlayer selectors.
+- USA-only live (2026-09-27): `prefs.liveRegionFilter` default `usa` — Live/Guide/zap/Home/Assistant scoped to USA folders + US-network brands; Settings + Live toggle for All countries. Demo live groups prefixed `USA | …`.
+
+### Still needs user credentials (not finishable in-repo)
+
+- Real Xtream ingest + archive catch-up: Settings panel URL + username + password with `tv_archive` enabled
+- Production RLS / Auth: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` + Auth users, then drop anon policies per `supabase/RLS.md`
+- Live LLM: Settings → Assistant AI (BYOK) preferred for Fire Stick; optional server `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` for `npm run dev`
